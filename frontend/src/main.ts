@@ -49,6 +49,10 @@ import {
   createStringLights,
   tickStringLights,
   DANCE_FLOOR_BOUNDS,
+  JUKEBOX_POS,
+  JUKEBOX_INTERACT_RADIUS,
+  createJukeboxGlow,
+  tickJukeboxGlow,
 } from './pixi/decor.js';
 import { createPongVisual, updatePongVisual, showPongWinner, hidePongWinner } from './pixi/pong.js';
 import { initStatusOverlay, updateStatusOverlay } from './ui/statusOverlay.js';
@@ -56,7 +60,8 @@ import { initChatPanel, showChatPanel, hideChatPanel, addChatMessage, setRestart
 import { initRpsPanel, showRpsPanel, hideRpsPanel, renderRpsResult, setRpsOpponentPicked } from './ui/rpsPanel.js';
 import { initMemoryPanel, showMemoryPanel, hideMemoryPanel, renderMemoryState } from './ui/memoryPanel.js';
 import { initReflexPanel, showReflexPanel, hideReflexPanel, renderReflexState } from './ui/reflexPanel.js';
-import { createPromptBadge, updatePromptBadge, updateStandUpBadge } from './ui/promptBubble.js';
+import { createPromptBadge, updatePromptBadge, updateStandUpBadge, updateJukeboxBadge } from './ui/promptBubble.js';
+import { initJukebox, renderJukeboxState, toggleJukeboxPanel, jukeboxHasSong } from './ui/jukebox.js';
 import { initWorldChatBar, setWorldChatBarVisible } from './ui/worldChatBar.js';
 import { initJoinScreen } from './ui/joinScreen.js';
 import { initHud, setOnlineCount, setBarName } from './ui/hud.js';
@@ -82,6 +87,7 @@ appRoot.appendChild(uiRoot);
 
 initSound();
 initLeaderboard(document.body); // HUD'daki kupa düğmesi bu paneli açar
+initJukebox(document.body); // HUD'daki nota düğmesi ve E etkileşimi bu paneli açar
 initHud(document.body);
 initToasts(document.body);
 initActivityFeed(document.body);
@@ -111,6 +117,7 @@ const bartender = createBartender(worldContainer);
 const stringLights = createStringLights(worldContainer);
 const dustLayer = createDustLayer(worldContainer);
 const ambientParticles = createAmbientParticles(worldContainer);
+const jukeboxGlow = createJukeboxGlow(worldContainer);
 
 const overlayContainer = new Container();
 overlayContainer.visible = false;
@@ -449,7 +456,13 @@ onMessage((msg) => {
       if (msg.payload.kind === 'game_win') {
         const label = GAME_LABELS[msg.payload.game] ?? msg.payload.game;
         pushActivity(`${label}: ${msg.payload.winner} kazandı · rakip ${msg.payload.loser}`, 'win');
+      } else if (msg.payload.kind === 'jukebox') {
+        pushActivity(`${msg.payload.name} müzik kutusuna jeton attı: ${msg.payload.title}`);
       }
+      break;
+    }
+    case 'jukebox_state': {
+      renderJukeboxState(msg.payload, state.selfName);
       break;
     }
     case 'leaderboard': {
@@ -566,8 +579,23 @@ window.addEventListener('keydown', (e) => {
   }
   if (eligibleZoneId) {
     sendMessage({ type: 'zone_interact', payload: { zoneId: eligibleZoneId } });
+  } else if (nearJukebox()) {
+    toggleJukeboxPanel();
   }
 });
+
+function nearJukebox(): boolean {
+  return Math.hypot(state.self.x - JUKEBOX_POS.x, state.self.y - JUKEBOX_POS.y) < JUKEBOX_INTERACT_RADIUS;
+}
+
+// Dünya görünümündeki E rozetini günceller: önce oturulabilir zone, yoksa müzik kutusu.
+function updateWorldPrompt(eligible: PublicZone | null): void {
+  if (!eligible && nearJukebox()) {
+    updateJukeboxBadge(promptBadge, state.self.x, state.self.y);
+    return;
+  }
+  updatePromptBadge(promptBadge, eligible, state.self.x, state.self.y);
+}
 
 function findEligibleZone(): PublicZone | null {
   for (const zone of state.zones.values()) {
@@ -634,6 +662,7 @@ app.ticker.add(() => {
   tickDust(dustLayer, now);
   tickBartender(bartender, now);
   tickStringLights(stringLights, now);
+  tickJukeboxGlow(jukeboxGlow, now, jukeboxHasSong());
 
   if (!state.room && selfVisual) {
     if (state.sittingZoneId) {
@@ -645,17 +674,17 @@ app.ticker.add(() => {
         applyMovement(vec, dtMs, now);
         const eligible = findEligibleZone();
         eligibleZoneId = eligible?.zoneId ?? null;
-        updatePromptBadge(promptBadge, eligible, state.self.x, state.self.y);
+        updateWorldPrompt(eligible);
       } else {
         setSelfPosition(selfVisual, state.self.x, state.self.y, false, dtMs);
-        updateStandUpBadge(promptBadge, state.self.x, state.self.y);
+        updateStandUpBadge(promptBadge, state.self.x, state.self.y, state.sittingZoneId ?? 'seat');
       }
     } else {
       const vec = getMoveVector();
       applyMovement(vec, dtMs, now);
       const eligible = findEligibleZone();
       eligibleZoneId = eligible?.zoneId ?? null;
-      updatePromptBadge(promptBadge, eligible, state.self.x, state.self.y);
+      updateWorldPrompt(eligible);
     }
   } else {
     promptBadge.container.visible = false;

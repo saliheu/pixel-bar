@@ -140,6 +140,30 @@ function drawDartBoard(worldContainer: Container, x: number, y: number): void {
   worldContainer.addChild(g);
 }
 
+// Müzik kutusunun dünya konumu; main tarafı E-etkileşimi yakınlığında kullanır.
+export const JUKEBOX_POS = { x: 70, y: 310 };
+export const JUKEBOX_INTERACT_RADIUS = 80;
+
+// Şarkı çalarken müzik kutusunun etrafında nabız gibi atan neon halka.
+export function createJukeboxGlow(worldContainer: Container): Graphics {
+  const g = new Graphics();
+  g.visible = false;
+  worldContainer.addChild(g);
+  return g;
+}
+
+export function tickJukeboxGlow(g: Graphics, now: number, playing: boolean): void {
+  if (!playing) {
+    g.visible = false;
+    return;
+  }
+  g.visible = true;
+  const pulse = (Math.sin(now * 0.004) + 1) / 2;
+  g.clear();
+  g.circle(JUKEBOX_POS.x, JUKEBOX_POS.y - 4, 36 + pulse * 5).stroke({ width: 2, color: 0xf472b6, alpha: 0.22 + pulse * 0.28 });
+  g.circle(JUKEBOX_POS.x, JUKEBOX_POS.y - 4, 47 + pulse * 7).stroke({ width: 1.2, color: 0x38bdf8, alpha: 0.12 + pulse * 0.2 });
+}
+
 function drawJukebox(worldContainer: Container, x: number, y: number): void {
   const g = new Graphics();
   g.ellipse(x, y + 30, 26, 8).fill({ color: 0x0a0713, alpha: 0.35 });
@@ -570,5 +594,5 @@ export function createDecor(worldContainer: Container): void {
   drawPendantLights(worldContainer);
 
   drawDartBoard(worldContainer, 1040, 50);
-  drawJukebox(worldContainer, 70, 310);
+  drawJukebox(worldContainer, JUKEBOX_POS.x, JUKEBOX_POS.y);
 }

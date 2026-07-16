@@ -465,7 +465,9 @@ export function showSpeechBubble(v: PlayerVisual, text: string): void {
   g.moveTo(-5, 0).lineTo(5, 0).lineTo(0, 7).fill({ color: 0xfdf6e3, alpha: 0.96 });
   t.style.fill = 0x1c1730;
 
-  v.speechBubble.y = -68;
+  // Haritanın üst kenarına yakınken (ör. bar taburesi) balon canvas dışına
+  // taşıp okunmaz olmasın: üst kenardan en az 6px içeride kalacak kadar aşağı alınır.
+  v.speechBubble.y = Math.max(-68, 6 + h - v.renderY);
   v.speechBubble.visible = true;
   v.bubbleHideAt = performance.now() + BUBBLE_DURATION_MS;
 }

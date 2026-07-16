@@ -1,6 +1,7 @@
-import { isMuted, toggleMute, toggleMusic } from './sound.js';
+import { isMuted, toggleMute } from './sound.js';
 import { ICON_DOOR, ICON_NOTE, ICON_SOUND_ON, ICON_SOUND_OFF, ICON_STAR, ICON_TROPHY } from './icons.js';
 import { toggleLeaderboard } from './leaderboard.js';
+import { toggleJukeboxPanel } from './jukebox.js';
 
 let countEl: HTMLSpanElement;
 let barNameEl: HTMLSpanElement;
@@ -71,10 +72,9 @@ export function initHud(root: HTMLElement): void {
   musicBtn.type = 'button';
   musicBtn.className = 'hud-bar__mute';
   musicBtn.innerHTML = ICON_NOTE;
-  musicBtn.title = 'Jukebox müziği aç/kapat';
+  musicBtn.title = 'Müzik Kutusu';
   musicBtn.addEventListener('click', () => {
-    const on = toggleMusic();
-    musicBtn.classList.toggle('hud-bar__mute--active', on);
+    toggleJukeboxPanel();
     musicBtn.blur();
   });
   right.appendChild(musicBtn);

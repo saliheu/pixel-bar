@@ -18,6 +18,7 @@ export interface PlayerState {
   isAlive: boolean; // ws heartbeat için
   lastWorldChatAt: number; // dünya sohbeti rate-limit için
   lastEmoteAt: number; // emote rate-limit için
+  lastJukeboxAddAt: number; // müzik kutusuna jeton atma rate-limit için
   wins: number; // bu oturumdaki oyun galibiyetleri (lider tablosu için)
 }
 

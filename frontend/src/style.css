@@ -1656,6 +1656,197 @@ kbd {
   color: var(--text-faint);
 }
 
+/* ============ Müzik Kutusu paneli ============ */
+.jukebox-panel {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 120;
+  width: min(360px, 92vw);
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-panel);
+  padding: 16px 18px 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6), var(--glow-pink);
+  animation: panel-in 0.25s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+.jukebox-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.jukebox-panel__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--neon-pink-soft);
+}
+.jukebox-panel__title svg {
+  width: 15px;
+  height: 15px;
+}
+.jukebox-panel__title span {
+  color: #cbd5e1;
+}
+.jukebox-panel__close {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.jukebox-panel__close:hover {
+  color: #fff;
+}
+.jukebox-panel__now {
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.jukebox-panel__now-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jukebox-panel__now-by {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 3px;
+}
+.jukebox-panel__actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.jukebox-panel__play,
+.jukebox-panel__skip,
+.jukebox-panel__radio {
+  font-size: 12px;
+  font-family: var(--font-body);
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border-soft);
+  background: rgba(36, 31, 56, 0.9);
+  color: var(--text-dim);
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.jukebox-panel__play {
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #86efac;
+  animation: reflex-pulse 1.2s ease-in-out infinite;
+}
+.jukebox-panel__skip:hover,
+.jukebox-panel__radio:hover {
+  color: var(--text-main);
+  background: #3a3455;
+}
+.jukebox-panel__radio--on {
+  color: var(--neon-cyan-soft);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+.jukebox-panel__queue {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.jukebox-panel__queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.jukebox-panel__queue-rank {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-faint);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+}
+.jukebox-panel__queue-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jukebox-panel__queue-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.jukebox-panel__form {
+  display: flex;
+  gap: 6px;
+}
+.jukebox-panel__form input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  padding: 9px 11px;
+  color: var(--text-main);
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+.jukebox-panel__form input:focus {
+  outline: none;
+  border-color: var(--neon-pink);
+  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.15);
+}
+.jukebox-panel__form button {
+  background: var(--neon-pink);
+  color: #2b0a1c;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+  white-space: nowrap;
+}
+.jukebox-panel__form button:hover {
+  background: var(--neon-pink-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(244, 114, 182, 0.4);
+}
+.jukebox-panel__form button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+  transform: none;
+}
+.jukebox-panel__hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 /* ============ Erişilebilirlik ============ */
 button:focus-visible,
 input:focus-visible {

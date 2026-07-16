@@ -26,6 +26,10 @@ export const PONG_WIN_SCORE = 5;
 
 export const MEMORY_GRID_SIZE = 16;
 
+export const JUKEBOX_QUEUE_MAX = 10;
+export const JUKEBOX_ADD_COOLDOWN_MS = 20_000; // oyuncu başına jeton atma aralığı
+export const JUKEBOX_TITLE_MAX = 80;
+
 export const REFLEX_WIN_SCORE = 3;
 export const REFLEX_ARM_MIN_MS = 1200; // "BAS!" sinyali için minimum bekleme
 export const REFLEX_ARM_MAX_MS = 4200;

@@ -20,7 +20,18 @@ export interface PromptBadge {
   keyText: Text;
   labelText: Text;
   currentLabel: string;
+  contextKey: string; // aynı bağlamda (aynı zone / oturma durumu) tekrar gösterme
+  shownAt: number;
 }
+
+// Rozet birkaç saniye görünüp söner; bağlam değişince (başka masa, oturma/kalkma)
+// yeniden belirir. Böylece isim etiketi ve konuşma balonlarıyla çakışıp
+// sürekli ekranda durmaz.
+const BADGE_VISIBLE_MS = 2600;
+const BADGE_FADE_MS = 450;
+// Karakterin ALTINDA durur (üstü isim etiketi + balonlara ait).
+const BADGE_BELOW_OFFSET = 42;
+const MAP_BOTTOM_SAFE = 660; // haritanın en altındayken üstte gösterilir
 
 // "E Otur" biçiminde keycap görünümlü rozet.
 export function createPromptBadge(): PromptBadge {
@@ -47,7 +58,32 @@ export function createPromptBadge(): PromptBadge {
   labelText.anchor.set(0, 0.5);
   container.addChild(labelText);
 
-  return { container, bg, keyBg, keyText, labelText, currentLabel: '' };
+  return { container, bg, keyBg, keyText, labelText, currentLabel: '', contextKey: '', shownAt: 0 };
+}
+
+// Bağlama göre görünürlük/solma; yeni bağlamda sayaç sıfırlanır.
+function applyBadgeLifetime(badge: PromptBadge, key: string): void {
+  const now = performance.now();
+  if (badge.contextKey !== key) {
+    badge.contextKey = key;
+    badge.shownAt = now;
+  }
+  const t = now - badge.shownAt;
+  if (t < BADGE_VISIBLE_MS) {
+    badge.container.alpha = 1;
+    badge.container.visible = true;
+  } else if (t < BADGE_VISIBLE_MS + BADGE_FADE_MS) {
+    badge.container.alpha = 1 - (t - BADGE_VISIBLE_MS) / BADGE_FADE_MS;
+    badge.container.visible = true;
+  } else {
+    badge.container.visible = false;
+  }
+}
+
+function positionBadge(badge: PromptBadge, selfX: number, selfY: number): void {
+  badge.container.x = selfX;
+  // altta yer yoksa (harita dibi) eski gibi üstte göster
+  badge.container.y = selfY > MAP_BOTTOM_SAFE ? selfY - 58 : selfY + BADGE_BELOW_OFFSET;
 }
 
 function layoutBadge(badge: PromptBadge, label: string): void {
@@ -83,17 +119,23 @@ function layoutBadge(badge: PromptBadge, label: string): void {
 export function updatePromptBadge(badge: PromptBadge, zone: PublicZone | null, selfX: number, selfY: number): void {
   if (!zone) {
     badge.container.visible = false;
+    badge.contextKey = '';
     return;
   }
   layoutBadge(badge, PROMPT_LABEL[zone.type] ?? 'Otur');
-  badge.container.x = selfX;
-  badge.container.y = selfY - 58;
-  badge.container.visible = true;
+  positionBadge(badge, selfX, selfY);
+  applyBadgeLifetime(badge, `zone:${zone.zoneId}`);
 }
 
-export function updateStandUpBadge(badge: PromptBadge, selfX: number, selfY: number): void {
+// Müzik kutusunun yanındayken: "E Müzik Kutusu"
+export function updateJukeboxBadge(badge: PromptBadge, selfX: number, selfY: number): void {
+  layoutBadge(badge, 'Müzik Kutusu');
+  positionBadge(badge, selfX, selfY);
+  applyBadgeLifetime(badge, 'jukebox');
+}
+
+export function updateStandUpBadge(badge: PromptBadge, selfX: number, selfY: number, seatKey: string): void {
   layoutBadge(badge, STAND_UP_LABEL);
-  badge.container.x = selfX;
-  badge.container.y = selfY - 58;
-  badge.container.visible = true;
+  positionBadge(badge, selfX, selfY);
+  applyBadgeLifetime(badge, `standup:${seatKey}`);
 }

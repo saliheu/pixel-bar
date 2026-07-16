@@ -8,6 +8,7 @@ import { handleChatSend } from './chat.js';
 import { handleWorldChatSend } from './worldChat.js';
 import { handleEmote } from './emote.js';
 import { sendLeaderboardTo } from './social.js';
+import { sendJukeboxTo, handleJukeboxAdd, handleJukeboxEnded, handleJukeboxSkip } from './jukebox.js';
 import { handleRpsChoice, handlePongInput, handleMemoryFlip, handleGameRestart, handleReflexPress } from './gameplay.js';
 import type { ClientMessage } from '../protocol.js';
 import {
@@ -78,6 +79,7 @@ export function handleConnection(
     isAlive: true,
     lastWorldChatAt: 0,
     lastEmoteAt: 0,
+    lastJukeboxAddAt: 0,
     wins: 0,
   };
   players.set(id, player);
@@ -98,6 +100,7 @@ export function handleConnection(
 
   broadcastBar(barId, { type: 'player_joined', payload: toPublicPlayer(player) }, id);
   sendLeaderboardTo(id); // salonun mevcut lider tablosu
+  sendJukeboxTo(id); // çalan şarkı + kuyruk (varsa)
 
   socket.on('pong', () => {
     player.isAlive = true;
@@ -166,6 +169,15 @@ function dispatch(playerId: string, msg: ClientMessage): void {
       break;
     case 'reflex_press':
       handleReflexPress(playerId);
+      break;
+    case 'jukebox_add':
+      handleJukeboxAdd(playerId, msg.payload.videoId, msg.payload.title);
+      break;
+    case 'jukebox_ended':
+      handleJukeboxEnded(playerId, msg.payload.videoId);
+      break;
+    case 'jukebox_skip':
+      handleJukeboxSkip(playerId);
       break;
   }
 }

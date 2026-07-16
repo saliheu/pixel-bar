@@ -23,9 +23,16 @@ export function isMuted(): boolean {
   return muted;
 }
 
+// Ses aç/kapa değişimini dinlemek isteyenler için (ör. YouTube müzik kutusu).
+const muteListeners = new Set<(muted: boolean) => void>();
+export function onMuteChange(cb: (muted: boolean) => void): void {
+  muteListeners.add(cb);
+}
+
 export function toggleMute(): boolean {
   muted = !muted;
   localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+  for (const cb of muteListeners) cb(muted);
   return muted;
 }
 
@@ -57,10 +64,16 @@ export function isMusicOn(): boolean {
   return musicTimer !== null;
 }
 
-export function toggleMusic(): boolean {
+export function stopMusic(): void {
   if (musicTimer) {
     clearInterval(musicTimer);
     musicTimer = null;
+  }
+}
+
+export function toggleMusic(): boolean {
+  if (musicTimer) {
+    stopMusic();
     return false;
   }
   ensureCtx();

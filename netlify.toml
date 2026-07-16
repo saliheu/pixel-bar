@@ -1,5 +1,7 @@
 [build]
   base = "frontend"
+  # publish yolu base'e GÖRE çözülür; "frontend/dist" yazılırsa
+  # Netlify frontend/frontend/dist arar ve deploy patlar.
   command = "npm run build"
   publish = "dist"
 

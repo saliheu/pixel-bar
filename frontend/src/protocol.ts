@@ -41,7 +41,11 @@ export type ClientMessage =
   | { type: 'world_chat_send'; payload: { text: string } }
   | { type: 'emote'; payload: { emote: string } }
   | { type: 'game_restart'; payload: Record<string, never> }
-  | { type: 'reflex_press'; payload: Record<string, never> };
+  | { type: 'reflex_press'; payload: Record<string, never> }
+  // Müzik kutusu: jeton atıp YouTube şarkısı sıraya ekleme / bitti bildirimi / atlama
+  | { type: 'jukebox_add'; payload: { videoId: string; title: string } }
+  | { type: 'jukebox_ended'; payload: { videoId: string } }
+  | { type: 'jukebox_skip'; payload: Record<string, never> };
 
 // ---- Server -> Client ----
 export type ServerMessage =
@@ -66,9 +70,10 @@ export type ServerMessage =
   | { type: 'chat_message'; payload: { from: string; text: string; ts: number } }
   | { type: 'world_chat_message'; payload: { from: string; text: string; x: number; y: number; ts: number } }
   | { type: 'player_emote'; payload: { from: string; emote: string } }
-  // Salon içi olay duyurusu (aktivite şeridi): oyun bittiğinde herkese yayınlanır.
-  // winner/loser görünen isimlerdir (id değil).
-  | { type: 'activity'; payload: { kind: 'game_win'; game: RoomKind; winner: string; loser: string } }
+  // Salon içi olay duyurusu (aktivite şeridi). İsimler görünen isimlerdir (id değil).
+  | { type: 'activity'; payload: { kind: 'game_win'; game: RoomKind; winner: string; loser: string } | { kind: 'jukebox'; name: string; title: string } }
+  // Müzik kutusu durumu: salonda çalan şarkı + kuyruk (elapsedMs geç katılan senkron olsun diye)
+  | { type: 'jukebox_state'; payload: { current: { videoId: string; title: string; addedBy: string; elapsedMs: number } | null; queue: { videoId: string; title: string; addedBy: string }[] } }
   // Gecenin liderleri: bu oturumda en çok galibiyet alan ilk 5 oyuncu (salon bazlı).
   | { type: 'leaderboard'; payload: { top: { name: string; wins: number }[] } }
   | { type: 'error'; payload: { message: string } };
