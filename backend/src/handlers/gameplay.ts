@@ -1,0 +1,198 @@
+import { players } from '../state/players.js';
+import { rooms } from '../state/rooms.js';
+import { sendToPlayers } from '../util/broadcast.js';
+import { resolveRps, type RpsGame } from '../games/rps.js';
+import { flipCard, hideMismatch, isMemoryComplete, resetMemory, type MemoryGame } from '../games/memory.js';
+import { resetPong, type PongGame } from '../games/pong.js';
+import { clearReflexTimers, resetReflex, scoreReflexRound, type ReflexGame } from '../games/reflex.js';
+import { startPongLoop } from './pongLoop.js';
+import { recordWin } from './social.js';
+import type { RoomState } from '../state/rooms.js';
+import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS } from '../config.js';
+import type { Choice } from '../protocol.js';
+
+const MEMORY_MISMATCH_REVEAL_MS = 1100;
+
+export function handleRpsChoice(playerId: string, choice: Choice): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'rps' || !room.game) return; // game null = rakip bekleniyor
+  const game = room.game as RpsGame;
+
+  game.choices[playerId] = choice;
+
+  const result = resolveRps(game, [room.playerIds[0], room.playerIds[1]] as [string, string]);
+  if (!result) {
+    const waitingOn = room.playerIds.filter((pid) => !game.choices[pid]);
+    sendToPlayers(room.playerIds, { type: 'rps_waiting', payload: { waitingOn } });
+    return;
+  }
+
+  sendToPlayers(room.playerIds, {
+    type: 'rps_result',
+    payload: { round: game.round - 1, choices: result.choices, winner: result.winner, scores: { ...game.scores } },
+  });
+
+  // tur galibiyeti lider tablosuna işlenir (şerit duyurusu yok, çok sık olurdu)
+  if (result.winner !== 'draw') recordWin(result.winner, null, null);
+}
+
+export function handlePongInput(playerId: string, dir: -1 | 0 | 1): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'pong' || !room.game) return;
+  const game = room.game as PongGame;
+  game.inputDir[playerId] = dir;
+}
+
+// ---- Refleks Düellosu ----
+
+function sendReflexState(roomPlayerIds: readonly string[], game: ReflexGame): void {
+  sendToPlayers(roomPlayerIds, {
+    type: 'reflex_state',
+    payload: {
+      phase: game.phase,
+      round: game.round,
+      scores: { ...game.scores },
+      lastWinner: game.lastWinner,
+      falseStart: game.falseStart,
+      matchWinner: game.ended ? game.lastWinner : null,
+    },
+  });
+}
+
+// Yeni tur başlatır: "hazır ol" yayınlanır, rastgele gecikme sonra "BAS!" gelir.
+export function startReflexRound(room: RoomState): void {
+  const game = room.game as ReflexGame;
+  clearReflexTimers(game);
+  game.phase = 'get_ready';
+  game.falseStart = null;
+  sendReflexState(room.playerIds, game);
+
+  const delay = REFLEX_ARM_MIN_MS + Math.random() * (REFLEX_ARM_MAX_MS - REFLEX_ARM_MIN_MS);
+  game.armTimer = setTimeout(() => {
+    game.armTimer = null;
+    if (rooms.get(room.roomId) !== room || room.game !== game) return; // oda kapandı / oyun sıfırlandı
+    game.phase = 'armed';
+    sendReflexState(room.playerIds, game);
+  }, delay);
+}
+
+export function handleReflexPress(playerId: string): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'reflex' || !room.game || room.playerIds.length < 2) return;
+  const game = room.game as ReflexGame;
+
+  if (game.phase === 'result') return; // tur arası; basışlar yok sayılır
+
+  if (game.phase === 'armed') {
+    scoreReflexRound(game, playerId, null);
+  } else {
+    // erken start: turu rakip kazanır
+    const opponent = room.playerIds.find((pid) => pid !== playerId);
+    if (!opponent) return;
+    scoreReflexRound(game, opponent, playerId);
+  }
+  clearReflexTimers(game);
+  sendReflexState(room.playerIds, game);
+
+  if (game.ended && game.lastWinner) {
+    const loser = room.playerIds.find((pid) => pid !== game.lastWinner) ?? null;
+    recordWin(game.lastWinner, loser, 'reflex');
+  }
+
+  if (!game.ended) {
+    game.round++;
+    game.nextRoundTimer = setTimeout(() => {
+      game.nextRoundTimer = null;
+      if (rooms.get(room.roomId) !== room || room.game !== game) return;
+      startReflexRound(room);
+    }, REFLEX_NEXT_ROUND_MS);
+  }
+}
+
+// Biten bir oyunu (hafıza/pong/refleks) aynı odada yeniden başlatır.
+export function handleGameRestart(playerId: string): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || !room.game || room.playerIds.length < 2) return;
+
+  if (room.kind === 'memory') {
+    const game = room.game as MemoryGame;
+    if (!isMemoryComplete(game)) return; // oyun sürerken sıfırlanamaz
+    resetMemory(game);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'memory' } });
+    sendMemoryState(room.playerIds, game);
+  } else if (room.kind === 'pong') {
+    const game = room.game as PongGame;
+    if (!game.ended) return;
+    resetPong(game, room.playerIds);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'pong' } });
+    startPongLoop(room);
+  } else if (room.kind === 'reflex') {
+    const game = room.game as ReflexGame;
+    if (!game.ended) return;
+    resetReflex(game, room.playerIds);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'reflex' } });
+    startReflexRound(room);
+  }
+}
+
+export function sendMemoryState(roomPlayerIds: readonly string[], game: MemoryGame): void {
+  sendToPlayers(roomPlayerIds, {
+    type: 'memory_state',
+    payload: {
+      cards: game.cards.map((c, i) => ({ value: c.matched || game.flipped.includes(i) ? c.value : null, matched: c.matched })),
+      turn: game.turnOrder[game.turnIndex],
+      scores: { ...game.scores },
+    },
+  });
+}
+
+export function handleMemoryFlip(playerId: string, cardIndex: number): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'memory' || !room.game) return; // game null = rakip bekleniyor
+  const game = room.game as MemoryGame;
+
+  const outcome = flipCard(game, playerId, cardIndex);
+  // Geçersiz hamle (sıra bende değil, kart zaten açık, kapatma beklemesi vb.)
+  // normal oyun akışının parçası; sessizce yoksayılır.
+  if (!outcome.ok) return;
+
+  if (outcome.resolved) {
+    sendToPlayers(room.playerIds, {
+      type: 'memory_match_result',
+      payload: {
+        indices: outcome.resolved.indices,
+        matched: outcome.resolved.matched,
+        turn: game.turnOrder[game.turnIndex],
+        scores: { ...game.scores },
+      },
+    });
+  }
+
+  sendMemoryState(room.playerIds, game);
+
+  // Eşleşmeyen ikili: oyuncu ikinci kartı görebilsin diye kartlar kısa süre açık
+  // kalır, sonra kapatılıp sıra devredilir.
+  if (outcome.resolved && !outcome.resolved.matched) {
+    setTimeout(() => {
+      // oda kapandıysa ya da oyun bu arada sıfırlandıysa dokunma
+      if (rooms.get(room.roomId) !== room || room.game !== game) return;
+      hideMismatch(game);
+      sendMemoryState(room.playerIds, game);
+    }, MEMORY_MISMATCH_REVEAL_MS);
+  }
+
+  if (isMemoryComplete(game)) {
+    // Oyun bitti ama masa açık kalır; oyuncular chat'e devam edebilir veya room_leave ile ayrılabilir.
+    const [a, b] = game.turnOrder;
+    if (game.scores[a] !== game.scores[b]) {
+      const winner = game.scores[a] > game.scores[b] ? a : b;
+      const loser = winner === a ? b : a;
+      recordWin(winner, loser, 'memory');
+    }
+  }
+}

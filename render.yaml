@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: tutacak-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # Frontend'in yayınlandığı origin(ler), virgülle ayrılır (örn. https://pikselbar.netlify.app).
+      # Boş bırakılırsa tüm origin'ler kabul edilir.
+      - key: ALLOWED_ORIGIN
+        sync: false
