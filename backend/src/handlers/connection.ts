@@ -9,7 +9,8 @@ import { handleWorldChatSend } from './worldChat.js';
 import { handleEmote } from './emote.js';
 import { sendLeaderboardTo } from './social.js';
 import { sendJukeboxTo, handleJukeboxAdd, handleJukeboxEnded, handleJukeboxSkip } from './jukebox.js';
-import { handleRpsChoice, handlePongInput, handleMemoryFlip, handleGameRestart, handleReflexPress } from './gameplay.js';
+import { handleRpsChoice, handlePongInput, handleMemoryFlip, handleGameRestart, handleReflexPress, handlePenaltyPick } from './gameplay.js';
+import { handlePunch } from './punch.js';
 import type { ClientMessage } from '../protocol.js';
 import {
   MAP_WIDTH,
@@ -80,6 +81,8 @@ export function handleConnection(
     lastWorldChatAt: 0,
     lastEmoteAt: 0,
     lastJukeboxAddAt: 0,
+    lastPunchAt: 0,
+    stunnedUntil: 0,
     wins: 0,
   };
   players.set(id, player);
@@ -178,6 +181,12 @@ function dispatch(playerId: string, msg: ClientMessage): void {
       break;
     case 'jukebox_skip':
       handleJukeboxSkip(playerId);
+      break;
+    case 'punch':
+      handlePunch(playerId);
+      break;
+    case 'penalty_pick':
+      handlePenaltyPick(playerId, msg.payload.dir);
       break;
   }
 }

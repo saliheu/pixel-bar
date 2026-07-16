@@ -9,6 +9,9 @@ const PROMPT_LABEL: Record<string, string> = {
   bench: 'Otur',
   bar_stool: 'Otur',
   reflex_pad: 'Oyuna Gir',
+  stage_guitar: 'Gitar Çal',
+  stage_drums: 'Bateri Çal',
+  penalty_spot: 'Oyuna Gir',
 };
 
 const STAND_UP_LABEL = 'Kalk';

@@ -14,6 +14,7 @@ const KIND_TITLES: Record<string, string> = {
   memory: 'Hafıza Kartı',
   chat: 'Sohbet Masası',
   reflex: 'Refleks Düellosu',
+  penalty: 'Penaltı',
 };
 
 export function initChatPanel(root: HTMLElement): void {

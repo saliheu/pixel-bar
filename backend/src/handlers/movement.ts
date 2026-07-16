@@ -16,6 +16,7 @@ export function handleMove(playerId: string, x: number, y: number, facing: Facin
   if (!player) return;
   if (player.roomId) return; // bir odadayken serbest hareket yok
   if (findSeatZoneFor(playerId)) return; // bir koltukta (bank veya masa) otururken kalkmadan hareket yok
+  if (Date.now() < player.stunnedUntil) return; // yumruk yiyip yerdeyken hareket yok
 
   player.x = clamp(x, 0, MAP_WIDTH);
   player.y = clamp(y, PLAYER_MIN_Y, MAP_HEIGHT);

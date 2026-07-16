@@ -30,6 +30,15 @@ export const JUKEBOX_QUEUE_MAX = 10;
 export const JUKEBOX_ADD_COOLDOWN_MS = 20_000; // oyuncu başına jeton atma aralığı
 export const JUKEBOX_TITLE_MAX = 80;
 
+export const PENALTY_KICKS_EACH = 5; // oyuncu başına normal seri vuruş sayısı
+export const PENALTY_RESULT_MS = 2400; // vuruş sonucunun ekranda kalma süresi
+
+export const PUNCH_RANGE = 70; // yumruğun erişebildiği mesafe
+export const PUNCH_KNOCKBACK = 90; // kurbanın savrulma mesafesi
+export const PUNCH_COOLDOWN_MS = 1200;
+export const PUNCH_STUN_MS = 1100; // kurbanın yerde kalma süresi
+
+export const RPS_WIN_SCORE = 5; // ilk 5 galibiyeti alan maçı kazanır
 export const REFLEX_WIN_SCORE = 3;
 export const REFLEX_ARM_MIN_MS = 1200; // "BAS!" sinyali için minimum bekleme
 export const REFLEX_ARM_MAX_MS = 4200;

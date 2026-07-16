@@ -1,14 +1,15 @@
 import { players } from '../state/players.js';
 import { rooms } from '../state/rooms.js';
 import { sendToPlayers } from '../util/broadcast.js';
-import { resolveRps, type RpsGame } from '../games/rps.js';
+import { resolveRps, resetRps, rpsMatchWinner, type RpsGame } from '../games/rps.js';
 import { flipCard, hideMismatch, isMemoryComplete, resetMemory, type MemoryGame } from '../games/memory.js';
 import { resetPong, type PongGame } from '../games/pong.js';
 import { clearReflexTimers, resetReflex, scoreReflexRound, type ReflexGame } from '../games/reflex.js';
+import { resetPenalty, currentShooter, resolveKick, penaltyWinner, type PenaltyGame } from '../games/penalty.js';
 import { startPongLoop } from './pongLoop.js';
 import { recordWin } from './social.js';
 import type { RoomState } from '../state/rooms.js';
-import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS } from '../config.js';
+import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS, PENALTY_RESULT_MS } from '../config.js';
 import type { Choice } from '../protocol.js';
 
 const MEMORY_MISMATCH_REVEAL_MS = 1100;
@@ -19,6 +20,7 @@ export function handleRpsChoice(playerId: string, choice: Choice): void {
   if (!room || room.kind !== 'rps' || !room.game) return; // game null = rakip bekleniyor
   const game = room.game as RpsGame;
 
+  if (game.ended) return; // maç bitti, "yeniden başla" bekleniyor
   game.choices[playerId] = choice;
 
   const result = resolveRps(game, [room.playerIds[0], room.playerIds[1]] as [string, string]);
@@ -28,13 +30,19 @@ export function handleRpsChoice(playerId: string, choice: Choice): void {
     return;
   }
 
+  const matchWinner = rpsMatchWinner(game);
+  if (matchWinner) game.ended = true;
+
   sendToPlayers(room.playerIds, {
     type: 'rps_result',
-    payload: { round: game.round - 1, choices: result.choices, winner: result.winner, scores: { ...game.scores } },
+    payload: { round: game.round - 1, choices: result.choices, winner: result.winner, scores: { ...game.scores }, matchWinner },
   });
 
-  // tur galibiyeti lider tablosuna işlenir (şerit duyurusu yok, çok sık olurdu)
-  if (result.winner !== 'draw') recordWin(result.winner, null, null);
+  // Lider tablosu ve şerit duyurusu yalnızca maç bitince (tur tur değil).
+  if (matchWinner) {
+    const loser = room.playerIds.find((pid) => pid !== matchWinner) ?? null;
+    recordWin(matchWinner, loser, 'rps');
+  }
 }
 
 export function handlePongInput(playerId: string, dir: -1 | 0 | 1): void {
@@ -112,13 +120,74 @@ export function handleReflexPress(playerId: string): void {
   }
 }
 
-// Biten bir oyunu (hafıza/pong/refleks) aynı odada yeniden başlatır.
+// ---- Penaltı ----
+
+// phase 'pick': seçim bekleniyor; 'result': vuruş sonucu gösteriliyor.
+export function sendPenaltyState(room: RoomState, phase: 'pick' | 'result' = 'pick'): void {
+  const game = room.game as PenaltyGame;
+  sendToPlayers(room.playerIds, {
+    type: 'penalty_state',
+    payload: {
+      phase,
+      kick: game.kick,
+      totalKicks: game.turnOrder.length * 5,
+      shooter: currentShooter(game),
+      scores: { ...game.scores },
+      waitingOn: phase === 'pick' ? game.turnOrder.filter((pid) => !game.picks[pid]) : [],
+      last: game.last,
+      suddenDeath: game.suddenDeath,
+      matchWinner: penaltyWinner(game),
+    },
+  });
+}
+
+export function handlePenaltyPick(playerId: string, dir: unknown): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'penalty' || !room.game) return; // game null = rakip bekleniyor
+  const game = room.game as PenaltyGame;
+  if (game.ended || game.nextKickTimer) return; // sonuç gösterilirken seçim alınmaz
+  if (dir !== 'left' && dir !== 'mid' && dir !== 'right') return;
+  if (game.picks[playerId]) return; // seçim değiştirilemez
+
+  game.picks[playerId] = dir;
+
+  if (!resolveKick(game)) {
+    sendPenaltyState(room, 'pick'); // waitingOn güncellensin
+    return;
+  }
+
+  // Vuruş sonuçlandı: sonucu göster, kısa aradan sonra yeni vuruşa geç.
+  sendPenaltyState(room, 'result');
+
+  if (game.ended) {
+    const winner = penaltyWinner(game);
+    if (winner) {
+      const loser = room.playerIds.find((pid) => pid !== winner) ?? null;
+      recordWin(winner, loser, 'penalty');
+    }
+    return;
+  }
+
+  game.nextKickTimer = setTimeout(() => {
+    game.nextKickTimer = null;
+    if (rooms.get(room.roomId) !== room || room.game !== game) return;
+    sendPenaltyState(room, 'pick');
+  }, PENALTY_RESULT_MS);
+}
+
+// Biten bir oyunu (hafıza/pong/refleks/penaltı) aynı odada yeniden başlatır.
 export function handleGameRestart(playerId: string): void {
   const player = players.get(playerId);
   const room = player?.roomId ? rooms.get(player.roomId) : undefined;
   if (!room || !room.game || room.playerIds.length < 2) return;
 
-  if (room.kind === 'memory') {
+  if (room.kind === 'rps') {
+    const game = room.game as RpsGame;
+    if (!game.ended) return;
+    resetRps(game);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'rps' } });
+  } else if (room.kind === 'memory') {
     const game = room.game as MemoryGame;
     if (!isMemoryComplete(game)) return; // oyun sürerken sıfırlanamaz
     resetMemory(game);
@@ -136,6 +205,12 @@ export function handleGameRestart(playerId: string): void {
     resetReflex(game, room.playerIds);
     sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'reflex' } });
     startReflexRound(room);
+  } else if (room.kind === 'penalty') {
+    const game = room.game as PenaltyGame;
+    if (!game.ended) return;
+    resetPenalty(game);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'penalty' } });
+    sendPenaltyState(room, 'pick');
   }
 }
 

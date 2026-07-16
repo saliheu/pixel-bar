@@ -1,5 +1,6 @@
 import { sendMessage } from '../net/socket.js';
 import { displayName } from '../state/store.js';
+import { setRestartVisible } from './chatPanel.js';
 import { ICON_ROCK, ICON_PAPER, ICON_SCISSORS } from './icons.js';
 import type { Choice } from '../protocol.js';
 
@@ -112,7 +113,7 @@ export function showRpsPanel(waiting: boolean): void {
   setCard(cardOppEl, waiting ? '···' : '?', waiting ? 'empty' : 'thinking');
   scoreYouEl.textContent = '';
   scoreOppEl.textContent = '';
-  resultEl.textContent = waiting ? 'Rakip bekleniyor... biri gelince oyun başlar.' : 'Elini seç!';
+  resultEl.textContent = waiting ? 'Rakip bekleniyor... biri gelince oyun başlar.' : 'Elini seç! (İlk 5 galibiyet kazanır)';
   resultEl.className = 'rps-panel__result';
   resetButtons();
 }
@@ -131,6 +132,7 @@ export function renderRpsResult(
   choices: Record<string, Choice>,
   scores: Record<string, number>,
   selfId: string | null,
+  matchWinner: string | null,
 ): void {
   const oppId = Object.keys(choices).find((pid) => pid !== selfId) ?? '';
   const myChoice = selfId ? choices[selfId] : undefined;
@@ -139,15 +141,24 @@ export function renderRpsResult(
   if (myChoice) setCard(cardYouEl, CHOICE_ICONS[myChoice], 'reveal');
   if (oppChoice) setCard(cardOppEl, CHOICE_ICONS[oppChoice], 'reveal');
 
-  let outcome: string;
   let resultClass = 'rps-panel__result';
-  if (winner === 'draw') {
-    outcome = 'Berabere!';
+  let outcome: string;
+  if (matchWinner) {
+    // maç bitti: turun galibinden bağımsız, seriyi kim aldı
+    if (matchWinner === selfId) {
+      outcome = 'Maç bitti — Kazandın!';
+      resultClass += ' rps-panel__result--win';
+    } else {
+      outcome = `Maç bitti — Kazanan: ${displayName(matchWinner)}`;
+      resultClass += ' rps-panel__result--lose';
+    }
+  } else if (winner === 'draw') {
+    outcome = 'Berabere! Tekrar seç.';
   } else if (winner === selfId) {
-    outcome = 'Kazandın!';
+    outcome = 'Turu aldın!';
     resultClass += ' rps-panel__result--win';
   } else {
-    outcome = 'Kaybettin.';
+    outcome = 'Turu kaybettin.';
     resultClass += ' rps-panel__result--lose';
   }
   resultEl.textContent = outcome;
@@ -155,5 +166,12 @@ export function renderRpsResult(
 
   scoreYouEl.textContent = `Sen ${selfId ? scores[selfId] ?? 0 : 0}`;
   scoreOppEl.textContent = `${scores[oppId] ?? 0} ${displayName(oppId)}`;
-  resetButtons();
+
+  if (matchWinner) {
+    // butonları kilitle ve "Yeniden Başla"yı göster
+    for (const b of Object.values(buttons)) b.disabled = true;
+    setRestartVisible(true);
+  } else {
+    resetButtons();
+  }
 }

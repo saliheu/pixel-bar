@@ -19,6 +19,8 @@ export interface PlayerState {
   lastWorldChatAt: number; // dünya sohbeti rate-limit için
   lastEmoteAt: number; // emote rate-limit için
   lastJukeboxAddAt: number; // müzik kutusuna jeton atma rate-limit için
+  lastPunchAt: number; // yumruk rate-limit için
+  stunnedUntil: number; // yumruk yiyen oyuncu bu ana kadar hareket edemez
   wins: number; // bu oturumdaki oyun galibiyetleri (lider tablosu için)
 }
 

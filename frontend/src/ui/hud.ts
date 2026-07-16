@@ -32,6 +32,7 @@ export function initHud(root: HTMLElement): void {
   hints.innerHTML =
     '<span class="hud-hint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> gez</span>' +
     '<span class="hud-hint"><kbd>E</kbd> otur / kalk</span>' +
+    '<span class="hud-hint"><kbd>F</kbd> yumruk</span>' +
     '<span class="hud-hint"><kbd>1</kbd>–<kbd>6</kbd> emote</span>';
   bar.appendChild(hints);
 

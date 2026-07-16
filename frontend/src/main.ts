@@ -23,6 +23,9 @@ import {
   tickSpeechBubble,
   playEmote,
   tickEmote,
+  playPunch,
+  playKnockdown,
+  setInstrument,
   type PlayerVisual,
 } from './pixi/player.js';
 import {
@@ -60,6 +63,7 @@ import { initChatPanel, showChatPanel, hideChatPanel, addChatMessage, setRestart
 import { initRpsPanel, showRpsPanel, hideRpsPanel, renderRpsResult, setRpsOpponentPicked } from './ui/rpsPanel.js';
 import { initMemoryPanel, showMemoryPanel, hideMemoryPanel, renderMemoryState } from './ui/memoryPanel.js';
 import { initReflexPanel, showReflexPanel, hideReflexPanel, renderReflexState } from './ui/reflexPanel.js';
+import { initPenaltyPanel, showPenaltyPanel, hidePenaltyPanel, renderPenaltyState } from './ui/penaltyPanel.js';
 import { createPromptBadge, updatePromptBadge, updateStandUpBadge, updateJukeboxBadge } from './ui/promptBubble.js';
 import { initJukebox, renderJukeboxState, toggleJukeboxPanel, jukeboxHasSong } from './ui/jukebox.js';
 import { initWorldChatBar, setWorldChatBarVisible } from './ui/worldChatBar.js';
@@ -67,7 +71,7 @@ import { initJoinScreen } from './ui/joinScreen.js';
 import { initHud, setOnlineCount, setBarName } from './ui/hud.js';
 import { initToasts, showToast } from './ui/toast.js';
 import { initEmoteBar, setEmoteBarVisible } from './ui/emoteBar.js';
-import { initSound, sfx } from './ui/sound.js';
+import { initSound, sfx, playGuitarNote, playDrumHit } from './ui/sound.js';
 import { initQuests, questComplete } from './ui/quests.js';
 import { initActivityFeed, pushActivity } from './ui/activityFeed.js';
 import { initLeaderboard, renderLeaderboard } from './ui/leaderboard.js';
@@ -81,9 +85,16 @@ const gameWrap = document.createElement('div');
 gameWrap.className = 'game-wrap';
 appRoot.appendChild(gameWrap);
 
-const uiRoot = document.createElement('div');
-uiRoot.className = 'ui-root';
-appRoot.appendChild(uiRoot);
+// Oyun görünümü: bir odaya girince tam ekranı kaplar, haritayı gizler.
+// stage = aktif oyun (DOM paneli ya da pong için taşınan canvas), side = sohbet.
+const roomView = document.createElement('div');
+roomView.className = 'room-view hidden';
+const roomStage = document.createElement('div');
+roomStage.className = 'room-view__stage';
+const roomSide = document.createElement('div');
+roomSide.className = 'room-view__side';
+roomView.append(roomStage, roomSide);
+document.body.appendChild(roomView);
 
 initSound();
 initLeaderboard(document.body); // HUD'daki kupa düğmesi bu paneli açar
@@ -91,11 +102,12 @@ initJukebox(document.body); // HUD'daki nota düğmesi ve E etkileşimi bu panel
 initHud(document.body);
 initToasts(document.body);
 initActivityFeed(document.body);
-initStatusOverlay(uiRoot);
-initChatPanel(uiRoot);
-initRpsPanel(uiRoot);
-initMemoryPanel(uiRoot);
-initReflexPanel(uiRoot);
+initStatusOverlay(document.body);
+initChatPanel(roomSide);
+initRpsPanel(roomStage);
+initMemoryPanel(roomStage);
+initReflexPanel(roomStage);
+initPenaltyPanel(roomStage);
 initWorldChatBar(appRoot);
 initEmoteBar(appRoot, (emote) => {
   if (selfVisual) playEmote(selfVisual, emote);
@@ -143,6 +155,10 @@ let lastFrameTime = performance.now();
 let lastMoveSentAt = 0;
 let eligibleZoneId: string | null = null;
 let selfLastPuffAt = 0;
+let selfStunnedUntil = 0; // yumruk yiyince hareket kilidi
+let lastGuitarNoteAt = 0;
+let lastDrumHitAt = 0;
+let drumStep = 0;
 let introPlayed = false;
 let introSpot: { g: Graphics; startedAt: number } | null = null;
 
@@ -186,6 +202,7 @@ const GAME_LABELS: Record<string, string> = {
   pong: 'Retro Pong',
   memory: 'Hafıza Kartı',
   reflex: 'Refleks Düellosu',
+  penalty: 'Penaltı',
   chat: 'Sohbet',
 };
 
@@ -313,6 +330,7 @@ onMessage((msg) => {
       setWorldChatBarVisible(false);
       setEmoteBarVisible(false);
       setRestartVisible(false);
+      setRoomView(msg.payload.kind); // tam ekran oyun görünümü, harita gizli
 
       const waiting = msg.payload.playerIds.length < 2;
 
@@ -335,6 +353,9 @@ onMessage((msg) => {
         showMemoryPanel(waiting);
       } else if (msg.payload.kind === 'reflex') {
         showReflexPanel(waiting);
+      } else if (msg.payload.kind === 'penalty') {
+        showPenaltyPanel(waiting);
+        if (!waiting) sfx.whistle();
       } else if (msg.payload.kind === 'pong') {
         state.pong = { ball: { x: 350, y: 200 }, paddles: {}, score: {}, ended: null };
         if (waiting) showPongWinner(pongVisual, 'RAKİP BEKLENİYOR...');
@@ -352,6 +373,7 @@ onMessage((msg) => {
     case 'game_restarted': {
       setRestartVisible(false);
       if (msg.payload.kind === 'pong') hidePongWinner(pongVisual);
+      if (msg.payload.kind === 'rps') showRpsPanel(false); // kartları/skoru sıfırla
       showToast('Yeni oyun başladı!');
       sfx.join();
       break;
@@ -369,10 +391,12 @@ onMessage((msg) => {
         state.rps.lastResult = { winner: msg.payload.winner, choices: msg.payload.choices };
         state.rps.scores = msg.payload.scores;
       }
-      renderRpsResult(msg.payload.winner, msg.payload.choices, msg.payload.scores, state.selfId);
-      if (msg.payload.winner === state.selfId) sfx.win();
-      else if (msg.payload.winner !== 'draw') sfx.lose();
-      questComplete('game');
+      renderRpsResult(msg.payload.winner, msg.payload.choices, msg.payload.scores, state.selfId, msg.payload.matchWinner);
+      if (msg.payload.matchWinner) {
+        if (msg.payload.matchWinner === state.selfId) sfx.win();
+        else sfx.lose();
+        questComplete('game');
+      }
       break;
     }
     case 'pong_state': {
@@ -409,6 +433,58 @@ onMessage((msg) => {
         if (msg.payload.matchWinner === state.selfId) sfx.win();
         else sfx.lose();
         questComplete('game');
+      }
+      break;
+    }
+    case 'penalty_state': {
+      renderPenaltyState(
+        msg.payload.phase,
+        msg.payload.kick,
+        msg.payload.totalKicks,
+        msg.payload.shooter,
+        msg.payload.scores,
+        msg.payload.waitingOn,
+        msg.payload.last,
+        msg.payload.suddenDeath,
+        msg.payload.matchWinner,
+        state.selfId,
+      );
+      if (msg.payload.phase === 'result' && msg.payload.last) {
+        if (msg.payload.last.goal) sfx.golScored();
+        else sfx.saved();
+      }
+      if (msg.payload.matchWinner) {
+        sfx.whistle();
+        if (msg.payload.matchWinner === state.selfId) sfx.win();
+        else sfx.lose();
+        questComplete('game');
+      }
+      break;
+    }
+    case 'punch_event': {
+      // saldırgan yumruk sallar, kurban savrulup yere serilir
+      const attackerV = msg.payload.attacker === state.selfId ? selfVisual : playerVisuals.get(msg.payload.attacker);
+      if (attackerV) playPunch(attackerV);
+      sfx.punch();
+
+      if (msg.payload.victim === state.selfId) {
+        state.self.x = msg.payload.victimX;
+        state.self.y = msg.payload.victimY;
+        state.self.moving = false;
+        selfStunnedUntil = performance.now() + msg.payload.stunMs;
+        if (selfVisual) {
+          playKnockdown(selfVisual, msg.payload.stunMs);
+          setSelfPosition(selfVisual, state.self.x, state.self.y, false, 0);
+        }
+      } else {
+        const p = state.players.get(msg.payload.victim);
+        if (p) {
+          p.x = msg.payload.victimX;
+          p.y = msg.payload.victimY;
+          p.moving = false;
+        }
+        const v = playerVisuals.get(msg.payload.victim);
+        if (v) playKnockdown(v, msg.payload.stunMs);
       }
       break;
     }
@@ -507,10 +583,18 @@ function seatXFor(zone: PublicZone, idx: number): number {
   return idx === 0 ? zone.x - ZONE_SLOT_OFFSET_X : zone.x + ZONE_SLOT_OFFSET_X;
 }
 
+// Sahne koltuğunda hangi enstrümanın çalındığı (yoksa null).
+function instrumentFor(zone: PublicZone): 'guitar' | 'drums' | null {
+  if (zone.type === 'stage_guitar') return 'guitar';
+  if (zone.type === 'stage_drums') return 'drums';
+  return null;
+}
+
 function handleSeatingZoneUpdate(zone: PublicZone): void {
   const selfId = state.selfId;
   const selfIdx = selfId ? zone.occupiedSlots.indexOf(selfId) : -1;
   const barStool = zone.type === 'bar_stool'; // tezgaha oturunca sırt kameraya döner
+  const instrument = instrumentFor(zone);
 
   if (selfIdx !== -1 && state.sittingZoneId !== zone.zoneId) {
     state.sittingZoneId = zone.zoneId;
@@ -520,20 +604,27 @@ function handleSeatingZoneUpdate(zone: PublicZone): void {
         state.self.facing = 'up';
         selfVisual.facing = 'up';
       }
+      setInstrument(selfVisual, instrument);
       setSitting(selfVisual, true);
     }
     sfx.sit();
     if (barStool) questComplete('stool');
   } else if (selfIdx === -1 && state.sittingZoneId === zone.zoneId) {
     state.sittingZoneId = null;
-    if (selfVisual) setSitting(selfVisual, false);
+    if (selfVisual) {
+      setInstrument(selfVisual, null);
+      setSitting(selfVisual, false);
+    }
   }
 
   for (const [pid, zid] of [...otherSittingZone]) {
     if (zid === zone.zoneId && !zone.occupiedSlots.includes(pid)) {
       otherSittingZone.delete(pid);
       const v = playerVisuals.get(pid);
-      if (v) setSitting(v, false);
+      if (v) {
+        setInstrument(v, null);
+        setSitting(v, false);
+      }
     }
   }
 
@@ -545,19 +636,38 @@ function handleSeatingZoneUpdate(zone: PublicZone): void {
     const v = playerVisuals.get(occupantId);
     if (v) {
       if (barStool) v.facing = 'up';
+      setInstrument(v, instrument);
       setSitting(v, true);
     }
   });
+}
+
+// Oda görünümünü açar/kapatır: haritayı gizler, tam ekran oyun katmanını gösterir.
+// Pong canvas tabanlı olduğu için canvas'ı sahneye taşırız; DOM oyunlarda canvas gizlenir.
+function setRoomView(kind: import('./protocol.js').RoomKind | null): void {
+  const inRoom = kind !== null;
+  document.body.classList.toggle('in-room', inRoom);
+  document.body.classList.toggle('room-pong', kind === 'pong');
+  worldContainer.visible = !inRoom;
+
+  if (kind === 'pong') {
+    roomStage.appendChild(gameWrap); // canvas'ı oyun sahnesine taşı
+  } else if (gameWrap.parentElement !== appRoot) {
+    appRoot.insertBefore(gameWrap, appRoot.firstChild); // dünya görünümüne geri koy
+  }
+  roomView.classList.toggle('hidden', !inRoom);
 }
 
 function leaveRoomView(): void {
   const prevPlayerIds = state.room?.playerIds ?? [];
   state.room = null;
   resetRoomState();
+  setRoomView(null);
   hideChatPanel();
   hideRpsPanel();
   hideMemoryPanel();
   hideReflexPanel();
+  hidePenaltyPanel();
   overlayContainer.visible = false;
   setWorldChatBarVisible(true);
   setEmoteBarVisible(true);
@@ -582,6 +692,17 @@ window.addEventListener('keydown', (e) => {
   } else if (nearJukebox()) {
     toggleJukeboxPanel();
   }
+});
+
+// ---- 'F' tuşu: yakındaki oyuncuya yumruk (hedefi sunucu seçer) ----
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() !== 'f') return;
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (state.room || state.sittingZoneId) return;
+  if (performance.now() < selfStunnedUntil) return; // yerdeyken yumruk yok
+  sendMessage({ type: 'punch', payload: {} });
+  if (selfVisual) playPunch(selfVisual); // menzilde kimse yoksa da sallanır
 });
 
 function nearJukebox(): boolean {
@@ -610,6 +731,11 @@ function findEligibleZone(): PublicZone | null {
 
 function applyMovement(vec: MoveVector, dtMs: number, now: number): void {
   if (!selfVisual) return;
+  // yumruk yiyip yerdeyken hareket edilemez (sunucu da reddediyor)
+  if (now < selfStunnedUntil) {
+    setSelfPosition(selfVisual, state.self.x, state.self.y, false, dtMs);
+    return;
+  }
   if (vec.moving) {
     // FPS'ten bağımsız hız; sekme arka plana düşüp dönünce ışınlanmayı önlemek için dt sınırlanır
     const step = MOVE_SPEED_PX_PER_S * Math.min(dtMs, 100) / 1000;
@@ -663,6 +789,22 @@ app.ticker.add(() => {
   tickBartender(bartender, now);
   tickStringLights(stringLights, now);
   tickJukeboxGlow(jukeboxGlow, now, jukeboxHasSong());
+
+  // Sahne: koltuklar doluysa hafif enstrüman sesleri (görsel animasyon oturma pozunda)
+  let guitarOn = false;
+  let drumsOn = false;
+  for (const zone of state.zones.values()) {
+    if (zone.type === 'stage_guitar' && zone.occupiedSlots[0]) guitarOn = true;
+    if (zone.type === 'stage_drums' && zone.occupiedSlots[0]) drumsOn = true;
+  }
+  if (guitarOn && now - lastGuitarNoteAt > 430) {
+    lastGuitarNoteAt = now;
+    playGuitarNote();
+  }
+  if (drumsOn && now - lastDrumHitAt > 225) {
+    lastDrumHitAt = now;
+    playDrumHit(drumStep++);
+  }
 
   if (!state.room && selfVisual) {
     if (state.sittingZoneId) {

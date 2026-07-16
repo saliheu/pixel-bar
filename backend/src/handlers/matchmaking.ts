@@ -7,18 +7,21 @@ import { initRps } from '../games/rps.js';
 import { initMemory, type MemoryGame } from '../games/memory.js';
 import { initPong, type PongGame } from '../games/pong.js';
 import { initReflex, clearReflexTimers, type ReflexGame } from '../games/reflex.js';
+import { initPenalty, clearPenaltyTimer, type PenaltyGame } from '../games/penalty.js';
 import { startPongLoop, stopPongLoop } from './pongLoop.js';
-import { sendMemoryState, startReflexRound } from './gameplay.js';
+import { sendMemoryState, startReflexRound, sendPenaltyState } from './gameplay.js';
 
 // Oda/eşleşme AÇMAYAN, sadece görsel oturma sağlayan zone tipleri.
-const SEAT_ONLY_TYPES: ZoneType[] = ['bench', 'bar_stool'];
+const SEAT_ONLY_TYPES: ZoneType[] = ['bench', 'bar_stool', 'stage_guitar', 'stage_drums'];
+type SeatOnlyType = 'bench' | 'bar_stool' | 'stage_guitar' | 'stage_drums';
 
-const ZONE_TYPE_TO_KIND: Record<Exclude<ZoneType, 'bench' | 'bar_stool'>, RoomKind> = {
+const ZONE_TYPE_TO_KIND: Record<Exclude<ZoneType, SeatOnlyType>, RoomKind> = {
   rps_stool: 'rps',
   pong_cabinet: 'pong',
   memory_table: 'memory',
   chat_table: 'chat',
   reflex_pad: 'reflex',
+  penalty_spot: 'penalty',
 };
 
 function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -58,7 +61,7 @@ export function handleZoneInteract(playerId: string, zoneId: string): void {
 // Masaya oturan oyuncu odaya hemen girer: ilk oturan tek başına bekler,
 // ikinci oturan gelince oyun kurulup başlar.
 function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
-  const kind = ZONE_TYPE_TO_KIND[zone.type as Exclude<ZoneType, 'bench' | 'bar_stool'>];
+  const kind = ZONE_TYPE_TO_KIND[zone.type as Exclude<ZoneType, SeatOnlyType>];
 
   let room = findRoomByZone(zone.zoneId);
   if (!room) {
@@ -77,6 +80,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     if (kind === 'rps') room.game = initRps(pids);
     else if (kind === 'memory') room.game = initMemory(pids);
     else if (kind === 'reflex') room.game = initReflex(pids);
+    else if (kind === 'penalty') room.game = initPenalty(pids);
     else if (kind === 'pong') {
       room.game = initPong(pids);
       pongSides = { ...(room.game as PongGame).sides };
@@ -96,6 +100,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     if (kind === 'pong') startPongLoop(room);
     if (kind === 'memory') sendMemoryState(room.playerIds, room.game as MemoryGame); // ilk sıra bilgisi
     if (kind === 'reflex') startReflexRound(room);
+    if (kind === 'penalty') sendPenaltyState(room); // ilk vuruşun rolleri bildirilsin
   }
 }
 
@@ -112,6 +117,9 @@ export function leaveRoom(playerId: string, reason: 'left' | 'disconnected'): vo
   }
   if (room.kind === 'reflex' && room.game) {
     clearReflexTimers(room.game as ReflexGame);
+  }
+  if (room.kind === 'penalty' && room.game) {
+    clearPenaltyTimer(room.game as PenaltyGame);
   }
 
   // sadece ayrılan oyuncunun koltuğu boşalır; kalan oturmaya devam eder

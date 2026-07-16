@@ -23,9 +23,15 @@ export interface JukeboxStatePayload {
   queue: JukeboxQueueItem[];
 }
 
-const VOLUME = 35;
+const VOLUME_KEY = 'pikselbar.musicVolume';
+function loadVolume(): number {
+  const v = Number(localStorage.getItem(VOLUME_KEY));
+  return Number.isFinite(v) && v >= 0 && v <= 100 ? v : 35;
+}
+let musicVolume = loadVolume();
 
 let panelEl: HTMLDivElement;
+let volumeEl: HTMLInputElement;
 let nowTitleEl: HTMLDivElement;
 let nowByEl: HTMLDivElement;
 let queueEl: HTMLOListElement;
@@ -99,8 +105,15 @@ function applyMute(muted: boolean): void {
   if (muted) player.mute?.();
   else {
     player.unMute?.();
-    player.setVolume?.(VOLUME);
+    player.setVolume?.(musicVolume);
   }
+}
+
+// Kaydırıcıdan gelen müzik sesini uygular ve saklar.
+function setMusicVolume(vol: number): void {
+  musicVolume = Math.max(0, Math.min(100, Math.round(vol)));
+  localStorage.setItem(VOLUME_KEY, String(musicVolume));
+  if (playerReady && player && !isMuted()) player.setVolume?.(musicVolume);
 }
 
 function syncPlayer(): void {
@@ -218,6 +231,28 @@ export function initJukebox(root: HTMLElement): void {
   actions.appendChild(radioBtn);
 
   panelEl.appendChild(actions);
+
+  // müzik ses seviyesi kaydırıcısı
+  const volRow = document.createElement('div');
+  volRow.className = 'jukebox-panel__volume';
+  volRow.innerHTML = `<span class="jukebox-panel__volume-label">${ICON_NOTE}</span>`;
+  volumeEl = document.createElement('input');
+  volumeEl.type = 'range';
+  volumeEl.min = '0';
+  volumeEl.max = '100';
+  volumeEl.step = '1';
+  volumeEl.value = String(musicVolume);
+  volumeEl.setAttribute('aria-label', 'Müzik sesi');
+  const volVal = document.createElement('span');
+  volVal.className = 'jukebox-panel__volume-val';
+  volVal.textContent = String(musicVolume);
+  volumeEl.addEventListener('input', () => {
+    setMusicVolume(Number(volumeEl.value));
+    volVal.textContent = String(musicVolume);
+  });
+  volRow.appendChild(volumeEl);
+  volRow.appendChild(volVal);
+  panelEl.appendChild(volRow);
 
   queueEl = document.createElement('ol');
   queueEl.className = 'jukebox-panel__queue';

@@ -34,14 +34,14 @@ function makeZone(barId: string, localId: string, type: ZoneType, x: number, y: 
   };
 }
 
-// Tek koltuklu bar taburesi: koltuk tam zone merkezinde, etkileşim yarıçapı
-// tabureler birbirine yakın dizildiği için daha dar tutulur.
-function makeBarStool(barId: string, localId: string, x: number, y: number): ZoneDef {
+// Tek koltuklu zone (bar taburesi, sahne koltukları): koltuk tam zone merkezinde,
+// etkileşim yarıçapı birbirine yakın dizilen koltuklar için daha dar tutulur.
+function makeSingleSeat(barId: string, localId: string, type: ZoneType, x: number, y: number): ZoneDef {
   const zoneId = `${barId}:${localId}`;
   return {
     zoneId,
     barId,
-    type: 'bar_stool',
+    type,
     x,
     y,
     radius: 40,
@@ -58,7 +58,7 @@ function makeBarStool(barId: string, localId: string, x: number, y: number): Zon
 // Her oda (bar salonu) bu düzenin kendi kopyasını alır.
 function makeBarZones(barId: string): ZoneDef[] {
   return [
-    ...Array.from({ length: 10 }, (_, i) => makeBarStool(barId, `stool-${i + 1}`, 330 + i * 60, 100)),
+    ...Array.from({ length: 10 }, (_, i) => makeSingleSeat(barId, `stool-${i + 1}`, 'bar_stool', 330 + i * 60, 100)),
     makeZone(barId, 'rps-1', 'rps_stool', 150, 200),
     makeZone(barId, 'rps-2', 'rps_stool', 150, 420),
     makeZone(barId, 'pong-1', 'pong_cabinet', 1050, 200),
@@ -69,9 +69,13 @@ function makeBarZones(barId: string): ZoneDef[] {
     makeZone(barId, 'chat-2', 'chat_table', 930, 600),
     makeZone(barId, 'reflex-1', 'reflex_pad', 150, 600),
     makeZone(barId, 'reflex-2', 'reflex_pad', 1050, 600),
-    makeZone(barId, 'bench-1', 'bench', 600, 220),
+    makeZone(barId, 'penalty-1', 'penalty_spot', 600, 240),
+    makeZone(barId, 'bench-1', 'bench', 370, 230),
     makeZone(barId, 'bench-2', 'bench', 250, 520),
     makeZone(barId, 'bench-3', 'bench', 950, 520),
+    // sahne: dans pistinin sağında, gitar + bateri koltukları
+    makeSingleSeat(barId, 'stage-guitar', 'stage_guitar', 828, 330),
+    makeSingleSeat(barId, 'stage-drums', 'stage_drums', 905, 330),
   ];
 }
 

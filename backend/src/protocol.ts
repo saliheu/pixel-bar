@@ -4,9 +4,20 @@
 
 export type Facing = 'up' | 'down' | 'left' | 'right';
 
-export type ZoneType = 'rps_stool' | 'pong_cabinet' | 'memory_table' | 'chat_table' | 'bench' | 'bar_stool' | 'reflex_pad';
-export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex';
+export type ZoneType =
+  | 'rps_stool'
+  | 'pong_cabinet'
+  | 'memory_table'
+  | 'chat_table'
+  | 'bench'
+  | 'bar_stool'
+  | 'reflex_pad'
+  | 'stage_guitar' // sahnede gitar koltuğu (oda açmaz, çalma animasyonu)
+  | 'stage_drums' // sahnede bateri koltuğu (oda açmaz, çalma animasyonu)
+  | 'penalty_spot'; // penaltı sahası (2 kişilik oyun)
+export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex' | 'penalty';
 export type Choice = 'rock' | 'paper' | 'scissors';
+export type PenaltyDir = 'left' | 'mid' | 'right';
 
 export interface PublicPlayer {
   id: string;
@@ -45,7 +56,11 @@ export type ClientMessage =
   // Müzik kutusu: jeton atıp YouTube şarkısı sıraya ekleme / bitti bildirimi / atlama
   | { type: 'jukebox_add'; payload: { videoId: string; title: string } }
   | { type: 'jukebox_ended'; payload: { videoId: string } }
-  | { type: 'jukebox_skip'; payload: Record<string, never> };
+  | { type: 'jukebox_skip'; payload: Record<string, never> }
+  // Yakındaki bir oyuncuya yumruk atma (hedefi sunucu seçer)
+  | { type: 'punch'; payload: Record<string, never> }
+  // Penaltı: şutör köşe seçer, kaleci uzanacağı köşeyi seçer
+  | { type: 'penalty_pick'; payload: { dir: PenaltyDir } };
 
 // ---- Server -> Client ----
 export type ServerMessage =
@@ -58,7 +73,7 @@ export type ServerMessage =
   | { type: 'room_joined'; payload: { roomId: string; kind: RoomKind; zoneId: string; playerIds: string[]; you: string; pongSides?: Record<string, 'left' | 'right'> } }
   | { type: 'room_closed'; payload: { roomId: string; reason: 'left' | 'disconnected' } }
   | { type: 'game_restarted'; payload: { kind: RoomKind } }
-  | { type: 'rps_result'; payload: { round: number; choices: Record<string, Choice>; winner: string | 'draw'; scores: Record<string, number> } }
+  | { type: 'rps_result'; payload: { round: number; choices: Record<string, Choice>; winner: string | 'draw'; scores: Record<string, number>; matchWinner: string | null } }
   | { type: 'rps_waiting'; payload: { waitingOn: string[] } }
   | { type: 'pong_state'; payload: { ball: { x: number; y: number }; paddles: Record<string, number>; score: Record<string, number> } }
   | { type: 'pong_goal'; payload: { scorer: string; score: Record<string, number> } }
@@ -76,4 +91,21 @@ export type ServerMessage =
   | { type: 'jukebox_state'; payload: { current: { videoId: string; title: string; addedBy: string; elapsedMs: number } | null; queue: { videoId: string; title: string; addedBy: string }[] } }
   // Gecenin liderleri: bu oturumda en çok galibiyet alan ilk 5 oyuncu (salon bazlı).
   | { type: 'leaderboard'; payload: { top: { name: string; wins: number }[] } }
+  // Yumruk: kurban yeni konumuna savrulur ve stunMs boyunca yerde kalır
+  | { type: 'punch_event'; payload: { attacker: string; victim: string; victimX: number; victimY: number; stunMs: number } }
+  // Penaltı durumu: pick aşamasında iki taraf seçim yapar, result'ta vuruş sonucu gelir
+  | {
+      type: 'penalty_state';
+      payload: {
+        phase: 'pick' | 'result';
+        kick: number; // 1'den başlayan vuruş sayacı
+        totalKicks: number; // normal seri uzunluğu (altın vuruşta aşılabilir)
+        shooter: string; // bu vuruşta şutu çeken oyuncu id'si
+        scores: Record<string, number>;
+        waitingOn: string[]; // henüz seçim yapmayanlar (pick aşaması)
+        last: { shooter: string; shot: PenaltyDir; dive: PenaltyDir; goal: boolean } | null;
+        suddenDeath: boolean;
+        matchWinner: string | null;
+      };
+    }
   | { type: 'error'; payload: { message: string } };

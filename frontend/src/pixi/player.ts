@@ -13,7 +13,10 @@ const ACTION_DURATIONS: Record<string, number> = {
   '🎉': 2100,
   '😮': 1400,
   '🕺': 2800,
+  punch: 450, // yumruk savurma (emote değil, F ile tetiklenir)
 };
+
+export type Instrument = 'guitar' | 'drums';
 
 const CONFETTI_COLORS = [0x38bdf8, 0xf472b6, 0xfbbf24, 0x4ade80, 0xb39ddb];
 
@@ -38,6 +41,8 @@ export interface PlayerVisual {
   isSelf: boolean;
   facing: Facing;
   sitting: boolean;
+  instrument: Instrument | null; // sahne koltuğunda çalınan enstrüman
+  knockedUntil: number | null; // yumruk yiyen karakter bu ana kadar yerde yatar
   color: number;
   hat: number;
 }
@@ -118,6 +123,8 @@ export function createPlayerVisual(name: string, colorIdx: number, hat: number, 
     isSelf,
     facing: 'down',
     sitting: false,
+    instrument: null,
+    knockedUntil: null,
     color,
     hat,
   };
@@ -133,12 +140,31 @@ export function playEmote(v: PlayerVisual, emote: string): void {
 }
 
 export function tickEmote(v: PlayerVisual, now: number): void {
+  if (v.knockedUntil !== null && now >= v.knockedUntil) v.knockedUntil = null;
   if (v.actionStartedAt === null || v.actionEmote === null) return;
   const duration = ACTION_DURATIONS[v.actionEmote] ?? 1600;
   if (now - v.actionStartedAt >= duration) {
     v.actionEmote = null;
     v.actionStartedAt = null;
   }
+}
+
+// Yumruk savurma animasyonu (saldırgan).
+export function playPunch(v: PlayerVisual): void {
+  if (v.sitting) return;
+  v.actionEmote = 'punch';
+  v.actionStartedAt = performance.now();
+}
+
+// Yumruk yiyen karakter yere serilir; süre bitince kendiliğinden kalkar.
+export function playKnockdown(v: PlayerVisual, stunMs: number): void {
+  v.knockedUntil = performance.now() + stunMs;
+  v.actionEmote = null;
+  v.actionStartedAt = null;
+}
+
+export function setInstrument(v: PlayerVisual, instrument: Instrument | null): void {
+  v.instrument = instrument;
 }
 
 // Bakış yönüne göre göz bebeği kayması.
@@ -251,6 +277,12 @@ export function drawCharacter(v: PlayerVisual, moving: boolean): void {
   const bob = moving ? 0 : Math.sin(v.idlePhase) * 1.1;
   g.y = bob;
 
+  // yumruk yemiş, yerde: her şeyden öncelikli poz
+  if (v.knockedUntil !== null && now < v.knockedUntil) {
+    drawKnockedPose(g, v, color, now);
+    return;
+  }
+
   if (v.sitting) {
     drawSittingPose(g, v, color, now, action, ap);
     return;
@@ -288,6 +320,37 @@ export function drawCharacter(v: PlayerVisual, moving: boolean): void {
   g.moveTo(6, -20).lineTo(9 + armSwing * 5, -8 + Math.abs(armSwing) * 2).stroke({ width: 3.2, color, cap: 'round' });
   g.moveTo(-4, -6).lineTo(-6 - legSwing * 7, 9).stroke({ width: 3.6, color, cap: 'round' });
   g.moveTo(4, -6).lineTo(6 + legSwing * 7, 9).stroke({ width: 3.6, color, cap: 'round' });
+}
+
+// Yerde yatma pozu: sırtüstü, X gözler, başın üstünde dönen yıldızlar.
+function drawKnockedPose(g: Graphics, v: PlayerVisual, color: number, now: number): void {
+  g.y = 0;
+  g.rotation = Math.sin(now * 0.008) * 0.02; // hafif sersemleme sallantısı
+
+  // gövde yerde (yatay), baş solda, bacaklar sağda
+  g.roundRect(-12, -13, 24, 12, 6).fill(color).stroke({ width: 2, color: OUTLINE_COLOR });
+  g.circle(-18, -8, 9).fill(color).stroke({ width: 2, color: OUTLINE_COLOR });
+  // X gözler
+  for (const [ex, ey] of [[-21, -10], [-15.5, -10]] as [number, number][]) {
+    g.moveTo(ex - 1.4, ey - 1.4).lineTo(ex + 1.4, ey + 1.4).stroke({ width: 1.2, color: OUTLINE_COLOR, cap: 'round' });
+    g.moveTo(ex + 1.4, ey - 1.4).lineTo(ex - 1.4, ey + 1.4).stroke({ width: 1.2, color: OUTLINE_COLOR, cap: 'round' });
+  }
+  // bacaklar sağa uzanmış, biri hafif kalkık
+  g.moveTo(11, -8).lineTo(21, -4).stroke({ width: 3.4, color, cap: 'round' });
+  g.moveTo(11, -10).lineTo(22, -12 + Math.sin(now * 0.006) * 1.5).stroke({ width: 3.4, color, cap: 'round' });
+  // kollar iki yana
+  g.moveTo(-6, -14).lineTo(-9, -20).stroke({ width: 3, color, cap: 'round' });
+  g.moveTo(2, -13).lineTo(6, -19).stroke({ width: 3, color, cap: 'round' });
+
+  // başın üstünde dönen küçük yıldızlar
+  for (let i = 0; i < 3; i++) {
+    const ang = now * 0.005 + (i / 3) * Math.PI * 2;
+    const sx = -18 + Math.cos(ang) * 11;
+    const sy = -24 + Math.sin(ang) * 3.5;
+    const a = 0.5 + 0.4 * Math.sin(now * 0.01 + i * 2);
+    v.fx.poly([sx, sy - 2.4, sx + 0.8, sy - 0.8, sx + 2.4, sy, sx + 0.8, sy + 0.8, sx, sy + 2.4, sx - 0.8, sy + 0.8, sx - 2.4, sy, sx - 0.8, sy - 0.8])
+      .fill({ color: 0xfde047, alpha: a });
+  }
 }
 
 // Oturma pozu; bar taburesinde (facing 'up') sırt kameraya dönüktür.
@@ -344,6 +407,38 @@ function drawSittingPose(g: Graphics, v: PlayerVisual, color: number, now: numbe
     // kollar öne, tezgaha uzanır (dirsekler hafif dışarıda)
     g.moveTo(-8, -14).lineTo(-11.5, -19).stroke({ width: 3, color, cap: 'round' });
     g.moveTo(8, -14).lineTo(11.5, -19).stroke({ width: 3, color, cap: 'round' });
+    return;
+  }
+
+  if (v.instrument === 'guitar') {
+    // gitar: sap sola yukarı, gövde kucakta; sağ el tıngırdatır, sol el sapta kayar
+    const strum = Math.sin(now * 0.012) * 2.5;
+    const fret = Math.sin(now * 0.004) * 3;
+    g.moveTo(-4, -10).lineTo(-17, -22).stroke({ width: 2.2, color: 0x8a5a2e }); // sap
+    g.moveTo(-17.5, -23.5).lineTo(-15.5, -21.5).stroke({ width: 3.5, color: 0x5c3a1c, cap: 'round' }); // baş
+    g.ellipse(0, -8, 8.5, 7).fill(0xb0703a);
+    g.ellipse(0, -8, 8.5, 7).stroke({ width: 1.6, color: 0x5c3a1c });
+    g.circle(0, -8, 2.6).fill(0x2c1a0c);
+    g.moveTo(-15, -20).lineTo(4, -6).stroke({ width: 0.7, color: 0xe8e2d6, alpha: 0.8 }); // teller
+    g.moveTo(-8, -14).lineTo(-13 - fret * 0.3, -19 + fret * 0.2).stroke({ width: 3, color: darken(color, 0.75), cap: 'round' }); // sol el
+    g.moveTo(8, -14).lineTo(4, -4 + strum).stroke({ width: 3, color, cap: 'round' }); // sağ el
+    drawMusicNotes(v.fx, now, -34);
+    return;
+  }
+  if (v.instrument === 'drums') {
+    // bateri: iki el bagetlerle dönüşümlü vurur
+    const hitL = Math.max(0, Math.sin(now * 0.014));
+    const hitR = Math.max(0, Math.sin(now * 0.014 + Math.PI));
+    const lx = -10;
+    const rx = 10;
+    const ly = -12 + hitL * 6;
+    const ry = -12 + hitR * 6;
+    g.moveTo(-8, -14).lineTo(lx, ly).stroke({ width: 3, color, cap: 'round' });
+    g.moveTo(8, -14).lineTo(rx, ry).stroke({ width: 3, color, cap: 'round' });
+    // bagetler
+    g.moveTo(lx, ly).lineTo(lx - 3, ly + 7).stroke({ width: 1.6, color: 0xd9b98c, cap: 'round' });
+    g.moveTo(rx, ry).lineTo(rx + 3, ry + 7).stroke({ width: 1.6, color: 0xd9b98c, cap: 'round' });
+    drawMusicNotes(v.fx, now, -34);
     return;
   }
 
@@ -422,6 +517,34 @@ function drawActionPose(g: Graphics, v: PlayerVisual, color: number, now: number
       g.moveTo(6, -20).lineTo(13, -16).stroke({ width: 3.2, color, cap: 'round' });
       break;
     }
+    case 'punch': {
+      // ileri hamle + düz yumruk: ilk %40'ta uzanır, sonra geri çekilir
+      const ext = ap < 0.4 ? ap / 0.4 : 1 - (ap - 0.4) / 0.6;
+      g.x = ext * 4;
+      const fx = 8 + ext * 10;
+      g.moveTo(-6, -20).lineTo(-10, -14).stroke({ width: 3.2, color, cap: 'round' }); // gard kolu
+      g.moveTo(6, -18).lineTo(fx, -18).stroke({ width: 3.4, color, cap: 'round' });
+      g.circle(fx + 1.5, -18, 3).fill(color).stroke({ width: 1.4, color: OUTLINE_COLOR }); // yumruk
+      // hız çizgileri
+      if (ext > 0.6) {
+        g.moveTo(fx + 6, -21).lineTo(fx + 11, -21).stroke({ width: 1, color: 0xffffff, alpha: (ext - 0.6) * 1.5 });
+        g.moveTo(fx + 6, -15).lineTo(fx + 11, -15).stroke({ width: 1, color: 0xffffff, alpha: (ext - 0.6) * 1.5 });
+      }
+      break;
+    }
+  }
+}
+
+// Çalarken başın üstünde süzülen notalar (daire + sap).
+function drawMusicNotes(g: Graphics, now: number, baseY: number): void {
+  for (let i = 0; i < 2; i++) {
+    const t = ((now * 0.0006 + i * 0.5) % 1);
+    const alpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+    const nx = 10 + Math.sin(now * 0.003 + i * 3) * 4 + t * 8;
+    const ny = baseY - t * 22;
+    g.circle(nx, ny, 2).fill({ color: 0xf9a8d4, alpha });
+    g.moveTo(nx + 2, ny).lineTo(nx + 2, ny - 7).stroke({ width: 1.1, color: 0xf9a8d4, alpha, cap: 'round' });
+    g.moveTo(nx + 2, ny - 7).lineTo(nx + 4.5, ny - 5.5).stroke({ width: 1.1, color: 0xf9a8d4, alpha, cap: 'round' });
   }
 }
 

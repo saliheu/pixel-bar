@@ -129,4 +129,38 @@ export const sfx = {
     tone(440, 60, 'square', 0.02);
     tone(880, 90, 'square', 0.02, 60);
   },
+  punch(): void {
+    // kısa tok darbe: düşük kare + daha da düşük üçgen
+    tone(140, 70, 'square', 0.05);
+    tone(90, 120, 'triangle', 0.05, 30);
+  },
+  whistle(): void {
+    // hakem düdüğü: iki kısa tiz
+    tone(2093, 90, 'square', 0.02);
+    tone(2093, 140, 'square', 0.02, 130);
+  },
+  golScored(): void {
+    tone(523, 90, 'square', 0.028);
+    tone(659, 90, 'square', 0.028, 90);
+    tone(880, 180, 'square', 0.032, 180);
+  },
+  saved(): void {
+    tone(494, 100, 'triangle', 0.028);
+    tone(370, 160, 'triangle', 0.026, 100);
+  },
 };
+
+// ---- Sahne enstrümanları: koltukta biri oturduğu sürece main döngüsü çağırır ----
+const GUITAR_NOTES = [220, 261.6, 329.6, 392, 329.6, 261.6]; // A minör arpej
+let guitarStep = 0;
+
+export function playGuitarNote(): void {
+  tone(GUITAR_NOTES[guitarStep % GUITAR_NOTES.length], 260, 'triangle', 0.022);
+  guitarStep++;
+}
+
+export function playDrumHit(step: number): void {
+  if (step % 4 === 0) tone(70, 100, 'sine', 0.06); // kick
+  else if (step % 4 === 2) tone(180, 60, 'triangle', 0.035); // snare benzeri
+  else tone(2400, 22, 'square', 0.006); // hi-hat
+}

@@ -12,6 +12,9 @@ const ZONE_LABELS: Record<ZoneType, string> = {
   bench: 'Bank',
   bar_stool: '', // tabureler etiketlenmez (10 tanesi tezgah boyunca dizili)
   reflex_pad: 'Refleks Düellosu',
+  stage_guitar: 'Gitar',
+  stage_drums: 'Bateri',
+  penalty_spot: 'Penaltı',
 };
 
 const SEAT_EMPTY = 0xf5c451;
@@ -65,6 +68,9 @@ const RUG_COLORS: Record<ZoneType, number> = {
   bench: 0xb39ddb,
   bar_stool: 0xfbbf24,
   reflex_pad: 0xff6b6b,
+  stage_guitar: 0xf472b6,
+  stage_drums: 0xf472b6,
+  penalty_spot: 0x4ade80,
 };
 
 function drawRug(g: Graphics, w: number, h: number, type?: ZoneType): void {
@@ -146,6 +152,60 @@ function drawBase(g: Graphics, type: ZoneType): void {
       g.circle(0, -2, 10).fill(0x5a3d64);
       g.circle(0, -2, 10).stroke({ width: 2, color: 0x37243e });
       g.circle(0, -2, 5.5).stroke({ width: 1, color: 0x7a5588, alpha: 0.7 });
+      break;
+    case 'stage_guitar':
+      // sahne platform parçası + amfi + gitar standı
+      drawRug(g, 40, 15, 'stage_guitar');
+      g.roundRect(-34, -14, 68, 34, 6).fill(0x3a2450);
+      g.roundRect(-34, -14, 68, 34, 6).stroke({ width: 2, color: 0x241335 });
+      // amfi
+      g.roundRect(-30, -30, 20, 20, 3).fill(0x1c1226);
+      g.roundRect(-30, -30, 20, 20, 3).stroke({ width: 1.5, color: 0x0f0a16 });
+      g.circle(-20, -20, 6).stroke({ width: 1.2, color: 0x7a5588 });
+      g.circle(-20, -20, 2.5).fill({ color: 0xf472b6, alpha: 0.7 });
+      // gitar standında duran gitar silueti (boş koltuk gösterimi)
+      g.moveTo(20, -28).lineTo(20, -8).stroke({ width: 2, color: 0x8a5a2e });
+      g.ellipse(20, -8, 6, 7).fill(0xb0703a);
+      g.ellipse(20, -8, 6, 7).stroke({ width: 1.4, color: 0x5c3a1c });
+      g.circle(20, -9, 2).fill(0x2c1a0c);
+      break;
+    case 'stage_drums':
+      // sahne platform parçası + bateri seti
+      drawRug(g, 40, 15, 'stage_drums');
+      g.roundRect(-34, -14, 68, 34, 6).fill(0x3a2450);
+      g.roundRect(-34, -14, 68, 34, 6).stroke({ width: 2, color: 0x241335 });
+      // kick davulu (önde, yüzü kameraya dönük)
+      g.circle(0, -6, 12).fill(0xb03a5c);
+      g.circle(0, -6, 12).stroke({ width: 2, color: 0x5c1c30 });
+      g.circle(0, -6, 8).fill(0xe8e2d6);
+      // tom + trampet
+      g.ellipse(-16, -18, 8, 5).fill(0xd0486e);
+      g.ellipse(-16, -18, 8, 5).stroke({ width: 1.4, color: 0x5c1c30 });
+      g.ellipse(16, -18, 8, 5).fill(0xd0486e);
+      g.ellipse(16, -18, 8, 5).stroke({ width: 1.4, color: 0x5c1c30 });
+      // zil
+      g.ellipse(26, -28, 9, 3).fill(0xd9b955);
+      g.ellipse(26, -28, 9, 3).stroke({ width: 1, color: 0x8a7222 });
+      g.moveTo(26, -26).lineTo(26, -12).stroke({ width: 1.5, color: 0x4a4258 });
+      break;
+    case 'penalty_spot':
+      // mini saha: çim zemin + penaltı noktası + üstte kale
+      g.roundRect(-52, -34, 104, 66, 10).fill(0x2c5c3a);
+      g.roundRect(-52, -34, 104, 66, 10).stroke({ width: 2, color: 0x1c3d26 });
+      // çim şeritleri
+      for (let i = -40; i <= 28; i += 17) {
+        g.rect(i, -32, 8, 62).fill({ color: 0x35704a, alpha: 0.5 });
+      }
+      // kale (üst kenarda)
+      g.moveTo(-30, -34).lineTo(-30, -48).lineTo(30, -48).lineTo(30, -34).stroke({ width: 2.5, color: 0xe8e2d6 });
+      for (let i = -26; i <= 26; i += 8) {
+        g.moveTo(i, -47).lineTo(i, -35).stroke({ width: 0.8, color: 0xe8e2d6, alpha: 0.5 });
+      }
+      // ceza yayı + penaltı noktası + top
+      g.circle(0, 6, 2.5).fill(0xe8e2d6);
+      g.circle(0, 8, 5).fill(0xffffff);
+      g.circle(0, 8, 5).stroke({ width: 1.2, color: 0x1c1730 });
+      g.poly([0, 4.5, -2.8, 7, -1.5, 10.5, 1.5, 10.5, 2.8, 7]).stroke({ width: 0.8, color: 0x1c1730, alpha: 0.7 });
       break;
   }
 }
