@@ -63,7 +63,7 @@ import { initChatPanel, showChatPanel, hideChatPanel, addChatMessage, setRestart
 import { initRpsPanel, showRpsPanel, hideRpsPanel, renderRpsResult, setRpsOpponentPicked } from './ui/rpsPanel.js';
 import { initMemoryPanel, showMemoryPanel, hideMemoryPanel, renderMemoryState } from './ui/memoryPanel.js';
 import { initReflexPanel, showReflexPanel, hideReflexPanel, renderReflexState } from './ui/reflexPanel.js';
-import { initPenaltyPanel, showPenaltyPanel, hidePenaltyPanel, renderPenaltyState } from './ui/penaltyPanel.js';
+import { initShootoutPanel, showShootoutPanel, hideShootoutPanel, renderShootoutState } from './ui/shootoutPanel.js';
 import { createPromptBadge, updatePromptBadge, updateStandUpBadge, updateJukeboxBadge } from './ui/promptBubble.js';
 import { initJukebox, renderJukeboxState, toggleJukeboxPanel, jukeboxHasSong } from './ui/jukebox.js';
 import { initWorldChatBar, setWorldChatBarVisible } from './ui/worldChatBar.js';
@@ -107,7 +107,7 @@ initChatPanel(roomSide);
 initRpsPanel(roomStage);
 initMemoryPanel(roomStage);
 initReflexPanel(roomStage);
-initPenaltyPanel(roomStage);
+initShootoutPanel(roomStage);
 initWorldChatBar(appRoot);
 initEmoteBar(appRoot, (emote) => {
   if (selfVisual) playEmote(selfVisual, emote);
@@ -192,7 +192,7 @@ function playIntro(): void {
   setTimeout(() => banner.remove(), 4600);
 
   sfx.welcome();
-  setTimeout(() => bartenderSay(bartender, `Hoş geldin ${state.selfName}! İlk içki benden.`, performance.now()), 1200);
+  // Karşılama repliğini sunucu 'bartender' mesajıyla salondaki herkese yollar.
 }
 
 const DUST_INTERVAL_MS = 150;
@@ -203,6 +203,7 @@ const GAME_LABELS: Record<string, string> = {
   memory: 'Hafıza Kartı',
   reflex: 'Refleks Düellosu',
   penalty: 'Penaltı',
+  freekick: 'Frikik',
   chat: 'Sohbet',
 };
 
@@ -353,8 +354,8 @@ onMessage((msg) => {
         showMemoryPanel(waiting);
       } else if (msg.payload.kind === 'reflex') {
         showReflexPanel(waiting);
-      } else if (msg.payload.kind === 'penalty') {
-        showPenaltyPanel(waiting);
+      } else if (msg.payload.kind === 'penalty' || msg.payload.kind === 'freekick') {
+        showShootoutPanel(msg.payload.kind, waiting);
         if (!waiting) sfx.whistle();
       } else if (msg.payload.kind === 'pong') {
         state.pong = { ball: { x: 350, y: 200 }, paddles: {}, score: {}, ended: null };
@@ -436,21 +437,23 @@ onMessage((msg) => {
       }
       break;
     }
-    case 'penalty_state': {
-      renderPenaltyState(
+    case 'shootout_state': {
+      renderShootoutState(
+        msg.payload.mode,
         msg.payload.phase,
         msg.payload.kick,
         msg.payload.totalKicks,
         msg.payload.shooter,
         msg.payload.scores,
         msg.payload.waitingOn,
+        msg.payload.wall,
         msg.payload.last,
         msg.payload.suddenDeath,
         msg.payload.matchWinner,
         state.selfId,
       );
       if (msg.payload.phase === 'result' && msg.payload.last) {
-        if (msg.payload.last.goal) sfx.golScored();
+        if (msg.payload.last.outcome === 'goal') sfx.golScored();
         else sfx.saved();
       }
       if (msg.payload.matchWinner) {
@@ -543,6 +546,11 @@ onMessage((msg) => {
     }
     case 'leaderboard': {
       renderLeaderboard(msg.payload.top);
+      break;
+    }
+    case 'bartender': {
+      // metni sunucu seçti: salondaki herkes aynı repliği görür
+      bartenderSay(bartender, msg.payload.text, performance.now());
       break;
     }
     case 'error': {
@@ -667,7 +675,7 @@ function leaveRoomView(): void {
   hideRpsPanel();
   hideMemoryPanel();
   hideReflexPanel();
-  hidePenaltyPanel();
+  hideShootoutPanel();
   overlayContainer.visible = false;
   setWorldChatBarVisible(true);
   setEmoteBarVisible(true);

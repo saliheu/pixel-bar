@@ -1,4 +1,4 @@
-@import '@fontsource/press-start-2p';
+﻿@import '@fontsource/press-start-2p';
 @import '@fontsource-variable/inter';
 
 /* ============ Tasarım değişkenleri ============ */
@@ -604,7 +604,7 @@ kbd {
 .room-view__stage > .rps-panel,
 .room-view__stage > .memory-panel,
 .room-view__stage > .reflex-panel,
-.room-view__stage > .penalty-panel {
+.room-view__stage > .shootout-panel {
   margin: 0;
   width: min(500px, 92vw);
   padding: 26px 26px 22px;
@@ -612,7 +612,7 @@ kbd {
 .room-view__stage .rps-panel__heading,
 .room-view__stage .memory-panel__heading,
 .room-view__stage .reflex-panel__heading,
-.room-view__stage .penalty-panel__heading {
+.room-view__stage .shootout-panel__heading {
   font-size: 14px;
   margin-bottom: 16px;
 }
@@ -1296,22 +1296,21 @@ body.in-room:not(.room-pong) #app {
   min-height: 32px;
 }
 
-/* ============ Penaltı paneli ============ */
-.penalty-panel {
+/* ============ Penaltı / Frikik (shootout) paneli ============ */
+.shootout-panel {
   position: relative;
   background: var(--bg-panel);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-panel);
-  padding: 17px 14px 14px;
-  margin-bottom: 12px;
+  padding: 17px 18px 15px;
   text-align: center;
   box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   animation: panel-in 0.28s cubic-bezier(0.22, 1.2, 0.36, 1) both;
 }
-.penalty-panel::before {
+.shootout-panel::before {
   content: '';
   position: absolute;
   top: 0;
@@ -1321,13 +1320,13 @@ body.in-room:not(.room-pong) #app {
   background: linear-gradient(90deg, #4ade80, #e8e2d6, #4ade80);
   box-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
 }
-.penalty-panel__heading {
+.shootout-panel__heading {
   font-family: var(--font-pixel);
   font-size: 11px;
   color: #cbd5e1;
-  margin-bottom: 10px;
+  margin-bottom: 9px;
 }
-.penalty-panel__score {
+.shootout-panel__score {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-dim);
@@ -1335,121 +1334,262 @@ body.in-room:not(.room-pong) #app {
   min-height: 16px;
 }
 
-/* mini kale sahnesi */
-.penalty-goal {
+/* saha: üstte kale (nişan alanı), önünde baraj, altta topun durduğu zemin */
+.shootout-pitch {
   position: relative;
-  height: 84px;
-  margin: 0 6px 12px;
-  border: 2.5px solid #e8e2d6;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  background:
-    repeating-linear-gradient(90deg, rgba(232, 226, 214, 0.07) 0 1px, transparent 1px 12px),
-    repeating-linear-gradient(0deg, rgba(232, 226, 214, 0.07) 0 1px, transparent 1px 12px),
-    linear-gradient(180deg, rgba(44, 92, 58, 0.5), rgba(28, 61, 38, 0.7));
+  margin: 0 auto 10px;
+  border-radius: 6px;
   overflow: hidden;
-  transition: box-shadow 0.2s ease;
+  transition: box-shadow 0.25s ease;
 }
-.penalty-goal--goal {
-  box-shadow: 0 0 22px rgba(74, 222, 128, 0.5);
-}
-.penalty-goal--save {
-  box-shadow: 0 0 22px rgba(248, 113, 113, 0.4);
-}
-.penalty-goal__keeper {
+.shootout-pitch--goal { box-shadow: 0 0 26px rgba(74, 222, 128, 0.55); }
+.shootout-pitch--save { box-shadow: 0 0 26px rgba(56, 189, 248, 0.45); }
+.shootout-pitch--miss { box-shadow: 0 0 26px rgba(248, 113, 113, 0.4); }
+
+/* kale: beyaz direkler + file dokusu */
+.shootout-pitch__goal {
   position: absolute;
-  left: 50%;
-  bottom: 4px;
-  width: 16px;
-  height: 34px;
-  border-radius: 8px 8px 4px 4px;
+  top: 0;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: 3px solid #e8e2d6;
+  border-bottom: 2px solid rgba(232, 226, 214, 0.45);
+  border-radius: 4px 4px 0 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(232, 226, 214, 0.09) 0 1px, transparent 1px 13px),
+    repeating-linear-gradient(0deg, rgba(232, 226, 214, 0.09) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, rgba(16, 34, 22, 0.9), rgba(26, 54, 34, 0.75));
+  cursor: crosshair;
+  z-index: 0;
+}
+/* zemin: çim şeritleri */
+.shootout-pitch__ground {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 18px, transparent 18px 36px),
+    linear-gradient(180deg, #2c5c3a, #1c3d26);
+}
+
+/* kaleci: kale çizgisinde, baraj arkasında */
+.shootout-keeper {
+  position: absolute;
+  width: 15px;
+  height: 30px;
+  margin: -15px 0 0 -7.5px;
+  border-radius: 7px 7px 3px 3px;
   background: #f472b6;
   border: 2px solid #1c1730;
-  transform: translateX(-50%);
-  transition: left 0.35s cubic-bezier(0.34, 1.3, 0.5, 1), transform 0.35s ease;
+  transition: left 0.4s cubic-bezier(0.34, 1.3, 0.5, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.5, 1);
+  pointer-events: none;
+  z-index: 1;
 }
-.penalty-goal__keeper::before {
+.shootout-keeper::before {
   content: '';
   position: absolute;
-  top: -12px;
+  top: -11px;
   left: 50%;
   transform: translateX(-50%);
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #f472b6;
   border: 2px solid #1c1730;
 }
-.penalty-goal__keeper--dive {
-  left: var(--dive-x, 50%);
-  transform: translateX(-50%) rotate(-12deg);
-}
-.penalty-goal__ball {
+
+/* baraj: omuz omuza duran siluetler (yarı saydam; kaleci arkasından seçilsin) */
+.shootout-wall {
   position: absolute;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 2;
+}
+.shootout-wall__man {
+  position: relative;
+  flex: 1;
+}
+.shootout-wall__man::before { /* kafa */
+  content: '';
+  position: absolute;
+  top: 0;
   left: 50%;
-  bottom: -18px;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #2a2140;
+  border: 1px solid #0f0a16;
+}
+.shootout-wall__man::after { /* gövde (omuzdan yere) */
+  content: '';
+  position: absolute;
+  top: 9px;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(180deg, #2f2448, #241b3a);
+  border: 1px solid #0f0a16;
+}
+
+.shootout-reach {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(244, 114, 182, 0.7);
+  background: rgba(244, 114, 182, 0.12);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+}
+.shootout-marker {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 2px solid var(--neon-amber);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+  pointer-events: none;
+  z-index: 4;
+}
+.shootout-marker::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--neon-amber);
+}
+.shootout-marker--keeper {
+  border-color: var(--neon-pink);
+  box-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+}
+.shootout-marker--keeper::after { background: var(--neon-pink); }
+
+.shootout-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.shootout-ball {
+  position: absolute;
   width: 13px;
   height: 13px;
+  margin: -6.5px 0 0 -6.5px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #ffffff, #cbd5e1);
   border: 1.5px solid #1c1730;
-  transform: translateX(-50%);
-  transition: left 0.4s cubic-bezier(0.3, 0.9, 0.4, 1), bottom 0.4s cubic-bezier(0.3, 0.9, 0.4, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 6;
 }
-.penalty-goal__ball--shot {
-  left: var(--target-x, 50%);
-  bottom: 40px;
+.shootout-ball--fly {
+  transition: left 0.45s cubic-bezier(0.3, 0.8, 0.4, 1), top 0.45s cubic-bezier(0.3, 0.8, 0.4, 1);
 }
 
-.penalty-panel__role {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text-dim);
-  margin-bottom: 9px;
-  min-height: 15px;
-}
-.penalty-panel__role--shooter {
-  color: #4ade80;
-}
-.penalty-panel__buttons {
+/* falso kaydırıcısı */
+.shootout-panel__curve {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   justify-content: center;
-  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
 }
-.penalty-panel__choice {
+.shootout-panel__curve input[type='range'] {
   flex: 1;
-  max-width: 82px;
-  background: rgba(36, 31, 56, 0.9);
-  border: 1px solid #3a3455;
-  border-radius: 10px;
-  padding: 9px 8px;
-  color: var(--text-main);
-  cursor: pointer;
-  font-size: 12.5px;
-  font-weight: 600;
+  max-width: 200px;
+  accent-color: var(--neon-amber);
+}
+
+/* güç / isabet çubuğu */
+.shootout-bar {
+  margin-bottom: 9px;
+}
+.shootout-bar__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--neon-amber);
+  margin-bottom: 4px;
+}
+.shootout-bar__track {
+  position: relative;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(15, 12, 28, 0.9);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+.shootout-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
+}
+.shootout-bar__sweet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  background: rgba(232, 226, 214, 0.75);
+  opacity: 0;
+}
+.shootout-bar--accuracy .shootout-bar__sweet { opacity: 1; }
+.shootout-bar--accuracy .shootout-bar__track {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.45), rgba(74, 222, 128, 0.5) 50%, rgba(239, 68, 68, 0.45));
+}
+.shootout-bar__marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+.shootout-panel__action {
+  width: min(220px, 100%);
+  padding: 10px;
   font-family: var(--font-body);
-  transition: background 0.14s ease, transform 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;
+  font-size: 13px;
+  font-weight: 700;
+  color: #06121c;
+  background: linear-gradient(135deg, #4ade80, #86efac);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease, opacity 0.14s ease;
 }
-.penalty-panel__choice:hover:not(:disabled) {
-  background: #3a3455;
-  border-color: #4ade80;
-  transform: translateY(-2px);
-}
-.penalty-panel__choice--selected {
-  border-color: #4ade80;
-  background: rgba(74, 222, 128, 0.14);
-  box-shadow: 0 0 14px rgba(74, 222, 128, 0.25);
-}
-.penalty-panel__choice:disabled:not(.penalty-panel__choice--selected) {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.penalty-panel__status {
+.shootout-panel__action:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
+.shootout-panel__action:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.shootout-panel__status {
+  margin-top: 8px;
   font-size: 12.5px;
   color: #cbd5e1;
   min-height: 18px;
 }
+.shootout-panel__role {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  min-height: 15px;
+}
+.shootout-panel__role--shooter { color: #4ade80; }
 
 /* ============ Hafıza kartı paneli ============ */
 .memory-panel {

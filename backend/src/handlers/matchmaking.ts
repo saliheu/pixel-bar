@@ -7,9 +7,10 @@ import { initRps } from '../games/rps.js';
 import { initMemory, type MemoryGame } from '../games/memory.js';
 import { initPong, type PongGame } from '../games/pong.js';
 import { initReflex, clearReflexTimers, type ReflexGame } from '../games/reflex.js';
-import { initPenalty, clearPenaltyTimer, type PenaltyGame } from '../games/penalty.js';
+import { initShootout, clearShootoutTimer, type ShootoutGame } from '../games/shootout.js';
 import { startPongLoop, stopPongLoop } from './pongLoop.js';
-import { sendMemoryState, startReflexRound, sendPenaltyState } from './gameplay.js';
+import { sendMemoryState, startReflexRound, sendShootoutState } from './gameplay.js';
+import { bartenderServeQuip } from './bartender.js';
 
 // Oda/eşleşme AÇMAYAN, sadece görsel oturma sağlayan zone tipleri.
 const SEAT_ONLY_TYPES: ZoneType[] = ['bench', 'bar_stool', 'stage_guitar', 'stage_drums'];
@@ -22,6 +23,7 @@ const ZONE_TYPE_TO_KIND: Record<Exclude<ZoneType, SeatOnlyType>, RoomKind> = {
   chat_table: 'chat',
   reflex_pad: 'reflex',
   penalty_spot: 'penalty',
+  freekick_spot: 'freekick',
 };
 
 function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -53,6 +55,9 @@ export function handleZoneInteract(playerId: string, zoneId: string): void {
   slot.occupiedBy = playerId;
   broadcastBar(zone.barId, { type: 'zone_state', payload: toPublicZone(zone) });
 
+  // tezgaha oturdu: barmen servis repliğini salondaki herkese yollar
+  if (zone.type === 'bar_stool') bartenderServeQuip(zone.barId);
+
   if (SEAT_ONLY_TYPES.includes(zone.type)) return; // bank/bar taburesi oda açmaz, sadece görsel doluluk
 
   joinOrCreateRoom(zone, playerId);
@@ -80,7 +85,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     if (kind === 'rps') room.game = initRps(pids);
     else if (kind === 'memory') room.game = initMemory(pids);
     else if (kind === 'reflex') room.game = initReflex(pids);
-    else if (kind === 'penalty') room.game = initPenalty(pids);
+    else if (kind === 'penalty' || kind === 'freekick') room.game = initShootout(kind, pids);
     else if (kind === 'pong') {
       room.game = initPong(pids);
       pongSides = { ...(room.game as PongGame).sides };
@@ -100,7 +105,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     if (kind === 'pong') startPongLoop(room);
     if (kind === 'memory') sendMemoryState(room.playerIds, room.game as MemoryGame); // ilk sıra bilgisi
     if (kind === 'reflex') startReflexRound(room);
-    if (kind === 'penalty') sendPenaltyState(room); // ilk vuruşun rolleri bildirilsin
+    if (kind === 'penalty' || kind === 'freekick') sendShootoutState(room); // ilk vuruşun rolleri bildirilsin
   }
 }
 
@@ -118,8 +123,8 @@ export function leaveRoom(playerId: string, reason: 'left' | 'disconnected'): vo
   if (room.kind === 'reflex' && room.game) {
     clearReflexTimers(room.game as ReflexGame);
   }
-  if (room.kind === 'penalty' && room.game) {
-    clearPenaltyTimer(room.game as PenaltyGame);
+  if ((room.kind === 'penalty' || room.kind === 'freekick') && room.game) {
+    clearShootoutTimer(room.game as ShootoutGame);
   }
 
   // sadece ayrılan oyuncunun koltuğu boşalır; kalan oturmaya devam eder

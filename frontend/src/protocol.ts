@@ -14,10 +14,22 @@ export type ZoneType =
   | 'reflex_pad'
   | 'stage_guitar' // sahnede gitar koltuğu (oda açmaz, çalma animasyonu)
   | 'stage_drums' // sahnede bateri koltuğu (oda açmaz, çalma animasyonu)
-  | 'penalty_spot'; // penaltı sahası (2 kişilik oyun)
-export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex' | 'penalty';
+  | 'penalty_spot' // penaltı sahası (2 kişilik oyun)
+  | 'freekick_spot'; // frikik sahası: barajı aşma (2 kişilik oyun)
+export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex' | 'penalty' | 'freekick';
 export type Choice = 'rock' | 'paper' | 'scissors';
-export type PenaltyDir = 'left' | 'mid' | 'right';
+
+// Penaltı ve frikik aynı "şut" iskeletini paylaşır (shootout).
+// Kale ağzı koordinatları: x 0=sol direk .. GOAL_W=sağ direk, y 0=üst kale direği .. GOAL_H=yer.
+export const GOAL_W = 240;
+export const GOAL_H = 100;
+export type ShootMode = 'penalty' | 'freekick';
+export type ShotOutcome = 'goal' | 'save' | 'miss' | 'blocked';
+export interface ShotWall {
+  x1: number;
+  x2: number;
+  top: number; // bu y'nin ALTINDAKİ (daha büyük y) şutlar baraja takılır
+}
 
 export interface PublicPlayer {
   id: string;
@@ -59,8 +71,9 @@ export type ClientMessage =
   | { type: 'jukebox_skip'; payload: Record<string, never> }
   // Yakındaki bir oyuncuya yumruk atma (hedefi sunucu seçer)
   | { type: 'punch'; payload: Record<string, never> }
-  // Penaltı: şutör köşe seçer, kaleci uzanacağı köşeyi seçer
-  | { type: 'penalty_pick'; payload: { dir: PenaltyDir } };
+  // Şut: nişan noktası + güç + isabet (+ frikikte falso). Kaleci uzanma noktası seçer.
+  | { type: 'shoot'; payload: { aimX: number; aimY: number; power: number; accuracy: number; curve: number } }
+  | { type: 'dive'; payload: { x: number; y: number } };
 
 // ---- Server -> Client ----
 export type ServerMessage =
@@ -91,19 +104,31 @@ export type ServerMessage =
   | { type: 'jukebox_state'; payload: { current: { videoId: string; title: string; addedBy: string; elapsedMs: number } | null; queue: { videoId: string; title: string; addedBy: string }[] } }
   // Gecenin liderleri: bu oturumda en çok galibiyet alan ilk 5 oyuncu (salon bazlı).
   | { type: 'leaderboard'; payload: { top: { name: string; wins: number }[] } }
+  // Barmen repliği: metni sunucu seçer ki salondaki herkes aynı sözü görsün.
+  | { type: 'bartender'; payload: { text: string } }
   // Yumruk: kurban yeni konumuna savrulur ve stunMs boyunca yerde kalır
   | { type: 'punch_event'; payload: { attacker: string; victim: string; victimX: number; victimY: number; stunMs: number } }
-  // Penaltı durumu: pick aşamasında iki taraf seçim yapar, result'ta vuruş sonucu gelir
+  // Penaltı/frikik durumu: pick aşamasında şutör nişan alır, kaleci uzanır; result'ta vuruş sonucu gelir
   | {
-      type: 'penalty_state';
+      type: 'shootout_state';
       payload: {
+        mode: ShootMode;
         phase: 'pick' | 'result';
         kick: number; // 1'den başlayan vuruş sayacı
         totalKicks: number; // normal seri uzunluğu (altın vuruşta aşılabilir)
         shooter: string; // bu vuruşta şutu çeken oyuncu id'si
         scores: Record<string, number>;
-        waitingOn: string[]; // henüz seçim yapmayanlar (pick aşaması)
-        last: { shooter: string; shot: PenaltyDir; dive: PenaltyDir; goal: boolean } | null;
+        waitingOn: string[]; // henüz hamlesini yapmayanlar (pick aşaması)
+        wall: ShotWall | null; // yalnızca frikikte; her vuruşta yeri değişir
+        last: {
+          shooter: string;
+          landX: number; // topun kale ağzında düştüğü nokta
+          landY: number;
+          diveX: number; // kalecinin uzandığı nokta
+          diveY: number;
+          reach: number; // kalecinin erişim yarıçapı (güce göre daralır)
+          outcome: ShotOutcome;
+        } | null;
         suddenDeath: boolean;
         matchWinner: string | null;
       };

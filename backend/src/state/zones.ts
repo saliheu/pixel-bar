@@ -49,33 +49,39 @@ function makeSingleSeat(barId: string, localId: string, type: ZoneType, x: numbe
   };
 }
 
-// Bar haritası düzeni (1200x700 dünya koordinatları):
-// - Üst: bar tezgahı boyunca 10 tabure (oturunca sırt kameraya döner)
-// - Sol taraf: Taş-Kağıt-Makas tabureleri
-// - Sağ taraf: Pong arcade kabinleri
-// - Alt: hafıza kartı (solda), sohbet masaları (sağda), köşelerde refleks
-// - Orta: disko dans pisti (dekoratif) + serbest oturma bankları
-// Her oda (bar salonu) bu düzenin kendi kopyasını alır.
+// Bar haritası düzeni (1200x700 dünya koordinatları). Mekân bölgelere ayrılır:
+// - Üst şerit (y~105): bar tezgahı boyunca 10 tabure (oturunca sırt kameraya döner)
+// - Üst orta (y~208): SAHNE — gitar + bateri, yüzü dans pistine dönük
+// - Sol duvar (x~145): Taş-Kağıt-Makas masaları + jukebox (dekor)
+// - Sağ duvar (x~1055): Pong arcade kabinleri
+// - Orta (600,420): disko dans pisti (dekor), sahnenin tam önünde
+// - Alt şerit (y~620): refleks | hafıza x2 | penaltı | sohbet x2 | refleks
+// - Banklar: sahnenin önü ve pistin iki yanı (serbest oturma)
+// Koordinatlar frontend/src/pixi/decor.ts'teki sahne/pist konumlarıyla uyumlu olmalı.
 function makeBarZones(barId: string): ZoneDef[] {
   return [
-    ...Array.from({ length: 10 }, (_, i) => makeSingleSeat(barId, `stool-${i + 1}`, 'bar_stool', 330 + i * 60, 100)),
-    makeZone(barId, 'rps-1', 'rps_stool', 150, 200),
-    makeZone(barId, 'rps-2', 'rps_stool', 150, 420),
-    makeZone(barId, 'pong-1', 'pong_cabinet', 1050, 200),
-    makeZone(barId, 'pong-2', 'pong_cabinet', 1050, 420),
-    makeZone(barId, 'memory-1', 'memory_table', 330, 600),
-    makeZone(barId, 'memory-2', 'memory_table', 510, 600),
-    makeZone(barId, 'chat-1', 'chat_table', 750, 600),
-    makeZone(barId, 'chat-2', 'chat_table', 930, 600),
-    makeZone(barId, 'reflex-1', 'reflex_pad', 150, 600),
-    makeZone(barId, 'reflex-2', 'reflex_pad', 1050, 600),
-    makeZone(barId, 'penalty-1', 'penalty_spot', 600, 240),
-    makeZone(barId, 'bench-1', 'bench', 370, 230),
-    makeZone(barId, 'bench-2', 'bench', 250, 520),
-    makeZone(barId, 'bench-3', 'bench', 950, 520),
-    // sahne: dans pistinin sağında, gitar + bateri koltukları
-    makeSingleSeat(barId, 'stage-guitar', 'stage_guitar', 828, 330),
-    makeSingleSeat(barId, 'stage-drums', 'stage_drums', 905, 330),
+    ...Array.from({ length: 10 }, (_, i) => makeSingleSeat(barId, `stool-${i + 1}`, 'bar_stool', 330 + i * 60, 105)),
+    // sahne: dans pistinin hemen üstünde, ortak platform üzerinde (platform decor'da çizilir)
+    makeSingleSeat(barId, 'stage-guitar', 'stage_guitar', 540, 208),
+    makeSingleSeat(barId, 'stage-drums', 'stage_drums', 660, 208),
+    // sol ve sağ duvarlar (aşağıda refleks kaideleri)
+    makeZone(barId, 'rps-1', 'rps_stool', 145, 250),
+    makeZone(barId, 'rps-2', 'rps_stool', 145, 430),
+    makeZone(barId, 'reflex-1', 'reflex_pad', 145, 560),
+    makeZone(barId, 'pong-1', 'pong_cabinet', 1055, 250),
+    makeZone(barId, 'pong-2', 'pong_cabinet', 1055, 430),
+    makeZone(barId, 'reflex-2', 'reflex_pad', 1055, 560),
+    // banklar: sahne önü + pistin yanları
+    makeZone(barId, 'bench-1', 'bench', 600, 300),
+    makeZone(barId, 'bench-2', 'bench', 295, 330),
+    makeZone(barId, 'bench-3', 'bench', 905, 330),
+    // alt şerit: hafıza x2 | penaltı | frikik | sohbet x2
+    makeZone(barId, 'memory-1', 'memory_table', 262, 620),
+    makeZone(barId, 'memory-2', 'memory_table', 400, 620),
+    makeZone(barId, 'penalty-1', 'penalty_spot', 548, 620),
+    makeZone(barId, 'freekick-1', 'freekick_spot', 706, 620),
+    makeZone(barId, 'chat-1', 'chat_table', 843, 620),
+    makeZone(barId, 'chat-2', 'chat_table', 968, 620),
   ];
 }
 

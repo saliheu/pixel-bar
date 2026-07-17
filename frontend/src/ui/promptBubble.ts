@@ -12,6 +12,7 @@ const PROMPT_LABEL: Record<string, string> = {
   stage_guitar: 'Gitar Çal',
   stage_drums: 'Bateri Çal',
   penalty_spot: 'Oyuna Gir',
+  freekick_spot: 'Oyuna Gir',
 };
 
 const STAND_UP_LABEL = 'Kalk';

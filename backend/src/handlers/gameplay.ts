@@ -5,11 +5,20 @@ import { resolveRps, resetRps, rpsMatchWinner, type RpsGame } from '../games/rps
 import { flipCard, hideMismatch, isMemoryComplete, resetMemory, type MemoryGame } from '../games/memory.js';
 import { resetPong, type PongGame } from '../games/pong.js';
 import { clearReflexTimers, resetReflex, scoreReflexRound, type ReflexGame } from '../games/reflex.js';
-import { resetPenalty, currentShooter, resolveKick, penaltyWinner, type PenaltyGame } from '../games/penalty.js';
+import {
+  resetShootout,
+  currentShooter,
+  currentKeeper,
+  resolveShootoutKick,
+  shootoutWinner,
+  sanitizeShot,
+  sanitizeDive,
+  type ShootoutGame,
+} from '../games/shootout.js';
 import { startPongLoop } from './pongLoop.js';
 import { recordWin } from './social.js';
 import type { RoomState } from '../state/rooms.js';
-import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS, PENALTY_RESULT_MS } from '../config.js';
+import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS, SHOOTOUT_RESULT_MS, SHOOTOUT_KICKS_EACH } from '../config.js';
 import type { Choice } from '../protocol.js';
 
 const MEMORY_MISMATCH_REVEAL_MS = 1100;
@@ -120,51 +129,55 @@ export function handleReflexPress(playerId: string): void {
   }
 }
 
-// ---- Penaltı ----
+// ---- Penaltı / Frikik (ortak shootout) ----
 
-// phase 'pick': seçim bekleniyor; 'result': vuruş sonucu gösteriliyor.
-export function sendPenaltyState(room: RoomState, phase: 'pick' | 'result' = 'pick'): void {
-  const game = room.game as PenaltyGame;
+// phase 'pick': hamleler bekleniyor; 'result': vuruş sonucu gösteriliyor.
+export function sendShootoutState(room: RoomState, phase: 'pick' | 'result' = 'pick'): void {
+  const game = room.game as ShootoutGame;
+  const waitingOn: string[] = [];
+  if (phase === 'pick') {
+    if (!game.shot) waitingOn.push(currentShooter(game));
+    if (!game.dive) waitingOn.push(currentKeeper(game));
+  }
   sendToPlayers(room.playerIds, {
-    type: 'penalty_state',
+    type: 'shootout_state',
     payload: {
+      mode: game.mode,
       phase,
       kick: game.kick,
-      totalKicks: game.turnOrder.length * 5,
+      totalKicks: SHOOTOUT_KICKS_EACH * 2,
       shooter: currentShooter(game),
       scores: { ...game.scores },
-      waitingOn: phase === 'pick' ? game.turnOrder.filter((pid) => !game.picks[pid]) : [],
+      waitingOn,
+      wall: game.wall,
       last: game.last,
       suddenDeath: game.suddenDeath,
-      matchWinner: penaltyWinner(game),
+      matchWinner: shootoutWinner(game),
     },
   });
 }
 
-export function handlePenaltyPick(playerId: string, dir: unknown): void {
+// Şut ve uzanma aynı akışa girer: ikisi de gelince vuruş çözülür.
+function submitShootoutMove(playerId: string, apply: (game: ShootoutGame) => boolean): void {
   const player = players.get(playerId);
   const room = player?.roomId ? rooms.get(player.roomId) : undefined;
-  if (!room || room.kind !== 'penalty' || !room.game) return; // game null = rakip bekleniyor
-  const game = room.game as PenaltyGame;
-  if (game.ended || game.nextKickTimer) return; // sonuç gösterilirken seçim alınmaz
-  if (dir !== 'left' && dir !== 'mid' && dir !== 'right') return;
-  if (game.picks[playerId]) return; // seçim değiştirilemez
+  if (!room || (room.kind !== 'penalty' && room.kind !== 'freekick') || !room.game) return;
+  const game = room.game as ShootoutGame;
+  if (game.ended || game.nextKickTimer) return; // sonuç gösterilirken hamle alınmaz
+  if (!apply(game)) return;
 
-  game.picks[playerId] = dir;
-
-  if (!resolveKick(game)) {
-    sendPenaltyState(room, 'pick'); // waitingOn güncellensin
+  if (!resolveShootoutKick(game)) {
+    sendShootoutState(room, 'pick'); // waitingOn güncellensin
     return;
   }
 
-  // Vuruş sonuçlandı: sonucu göster, kısa aradan sonra yeni vuruşa geç.
-  sendPenaltyState(room, 'result');
+  sendShootoutState(room, 'result');
 
   if (game.ended) {
-    const winner = penaltyWinner(game);
+    const winner = shootoutWinner(game);
     if (winner) {
       const loser = room.playerIds.find((pid) => pid !== winner) ?? null;
-      recordWin(winner, loser, 'penalty');
+      recordWin(winner, loser, room.kind);
     }
     return;
   }
@@ -172,8 +185,28 @@ export function handlePenaltyPick(playerId: string, dir: unknown): void {
   game.nextKickTimer = setTimeout(() => {
     game.nextKickTimer = null;
     if (rooms.get(room.roomId) !== room || room.game !== game) return;
-    sendPenaltyState(room, 'pick');
-  }, PENALTY_RESULT_MS);
+    sendShootoutState(room, 'pick');
+  }, SHOOTOUT_RESULT_MS);
+}
+
+export function handleShoot(playerId: string, raw: unknown): void {
+  submitShootoutMove(playerId, (game) => {
+    if (currentShooter(game) !== playerId || game.shot) return false; // sırası değil / şutunu attı
+    const shot = sanitizeShot(raw as Record<string, number>);
+    if (!shot) return false;
+    game.shot = shot;
+    return true;
+  });
+}
+
+export function handleDive(playerId: string, raw: unknown): void {
+  submitShootoutMove(playerId, (game) => {
+    if (currentKeeper(game) !== playerId || game.dive) return false;
+    const dive = sanitizeDive(raw as Record<string, number>);
+    if (!dive) return false;
+    game.dive = dive;
+    return true;
+  });
 }
 
 // Biten bir oyunu (hafıza/pong/refleks/penaltı) aynı odada yeniden başlatır.
@@ -205,12 +238,12 @@ export function handleGameRestart(playerId: string): void {
     resetReflex(game, room.playerIds);
     sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'reflex' } });
     startReflexRound(room);
-  } else if (room.kind === 'penalty') {
-    const game = room.game as PenaltyGame;
+  } else if (room.kind === 'penalty' || room.kind === 'freekick') {
+    const game = room.game as ShootoutGame;
     if (!game.ended) return;
-    resetPenalty(game);
-    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'penalty' } });
-    sendPenaltyState(room, 'pick');
+    resetShootout(game);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: room.kind } });
+    sendShootoutState(room, 'pick');
   }
 }
 

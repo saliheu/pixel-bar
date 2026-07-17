@@ -3,14 +3,14 @@ import type { RpsGame } from '../games/rps.js';
 import type { PongGame } from '../games/pong.js';
 import type { MemoryGame } from '../games/memory.js';
 import type { ReflexGame } from '../games/reflex.js';
-import type { PenaltyGame } from '../games/penalty.js';
+import type { ShootoutGame } from '../games/shootout.js';
 
 export interface RoomState {
   roomId: string;
   kind: RoomKind;
   zoneId: string;
   playerIds: string[]; // 1 kişi = rakip bekleniyor, 2 kişi = oyun aktif
-  game: RpsGame | PongGame | MemoryGame | ReflexGame | PenaltyGame | null; // tek kişiyken null
+  game: RpsGame | PongGame | MemoryGame | ReflexGame | ShootoutGame | null; // tek kişiyken null
   chatLastSentAt: Partial<Record<string, number>>; // rate-limit için
 }
 

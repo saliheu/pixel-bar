@@ -192,8 +192,9 @@ function drawJukebox(worldContainer: Container, x: number, y: number): void {
 }
 
 // ---- Disko dans pisti: renk döngülü karolar + disko topu ----
+// Sahnenin (y 165-250) tam önünde; backend zones.ts yerleşimiyle uyumlu.
 const FLOOR_CX = 600;
-const FLOOR_CY = 430;
+const FLOOR_CY = 420;
 const TILE = 34;
 const TILES_X = 8;
 const TILES_Y = 5;
@@ -441,24 +442,10 @@ export interface Bartender {
   quipBg: Graphics;
   quipText: Text;
   quipUntil: number | null;
-  nextIdleQuipAt: number;
 }
 
-// Servis sırasında ve arada bir kendiliğinden söylenen bar muhabbetleri.
-const SERVE_QUIPS = [
-  'Bu içki benden!',
-  'Hoş geldin, yolculuk nereye?',
-  'Bugün spesiyalimiz: piksel kolada.',
-  'Buzlu mu buzsuz mu? Şaka şaka, hepsi piksel.',
-  'Afiyet olsun şef!',
-];
-const IDLE_QUIPS = [
-  'Bardaklar kendini parlatmıyor...',
-  'Dans pisti yine bomboş... kim coşturacak?',
-  'Bir taş-kağıt-makas efsanesi arıyorum.',
-  '♪ hımm hı hımm ♪',
-  'En hızlı refleks bende sanıyordum, düelloya girmem.',
-];
+// Barmenin replikleri sunucudan gelir ('bartender' mesajı) ki salondaki
+// herkes aynı anda aynı sözü görsün.
 
 export function createBartender(worldContainer: Container): Bartender {
   const container = new Container();
@@ -487,7 +474,6 @@ export function createBartender(worldContainer: Container): Bartender {
     quipBg,
     quipText,
     quipUntil: null,
-    nextIdleQuipAt: performance.now() + 15_000 + Math.random() * 20_000,
   };
   drawBartender(bartender, 0);
   return bartender;
@@ -544,10 +530,10 @@ function drawBartender(b: Bartender, now: number): void {
 }
 
 // Bir bar taburesine oturan olunca barmen oraya gidip içki servis eder.
+// Repliği sunucu ayrıca 'bartender' mesajıyla herkese yollar.
 export function bartenderServe(b: Bartender, stoolX: number, now: number): void {
   b.serveX = Math.max(320, Math.min(880, stoolX));
   b.serveUntil = now + 3200;
-  bartenderSay(b, SERVE_QUIPS[Math.floor(Math.random() * SERVE_QUIPS.length)], now);
 }
 
 export function tickBartender(b: Bartender, now: number): void {
@@ -561,11 +547,6 @@ export function tickBartender(b: Bartender, now: number): void {
     b.quipUntil = null;
     b.quipBg.visible = false;
     b.quipText.visible = false;
-  }
-  // arada bir kendi kendine söylenir
-  if (now >= b.nextIdleQuipAt) {
-    b.nextIdleQuipAt = now + 35_000 + Math.random() * 40_000;
-    if (b.quipUntil === null) bartenderSay(b, IDLE_QUIPS[Math.floor(Math.random() * IDLE_QUIPS.length)], now);
   }
 
   // hedef: servis noktası ya da tezgah boyunca volta; ani sıçrama olmasın diye yumuşak takip
@@ -588,10 +569,67 @@ export function tickBartender(b: Bartender, now: number): void {
   }
 }
 
+// ---- Sahne platformu: gitar ve bateri koltuklarının üzerinde durduğu ortak podyum ----
+// Koltuklar (zones.ts: stage-guitar 540, stage-drums 660 @ y=208) bunun üstüne çizilir.
+const STAGE = { x1: 470, x2: 730, y1: 165, y2: 250 };
+
+function drawStage(worldContainer: Container): void {
+  const g = new Graphics();
+  const { x1, x2, y1, y2 } = STAGE;
+  const w = x2 - x1;
+
+  // arka perde: koyu kadife + kıvrımlar
+  g.roundRect(x1 - 6, y1 - 30, w + 12, 40, 4).fill(0x2a1038);
+  for (let x = x1; x < x2; x += 16) {
+    g.moveTo(x, y1 - 30).lineTo(x, y1 + 8).stroke({ width: 1, color: 0x1a0a24, alpha: 0.5 });
+  }
+
+  // podyum gövdesi (öne doğru hafif perspektif: alt kenar daha geniş)
+  g.poly([x1, y1, x2, y1, x2 + 8, y2, x1 - 8, y2]).fill(0x3a2450);
+  g.poly([x1, y1, x2, y1, x2 + 8, y2, x1 - 8, y2]).stroke({ width: 2, color: 0x241335 });
+  // üst yüzey parlaklığı
+  g.poly([x1 + 4, y1 + 3, x2 - 4, y1 + 3, x2 - 2, y1 + 14, x1 + 2, y1 + 14]).fill({ color: 0x4a2f66, alpha: 0.7 });
+  // ön kenar şeridi (sahne ışığı bandı)
+  g.roundRect(x1 - 8, y2 - 6, w + 16, 6, 3).fill(0x241335);
+  for (let x = x1; x <= x2; x += 26) {
+    g.circle(x, y2 - 3, 2).fill({ color: 0xfbbf24, alpha: 0.75 });
+    g.circle(x, y2 - 3, 4.5).fill({ color: 0xfbbf24, alpha: 0.12 });
+  }
+
+  // sahne spotları: podyuma düşen iki renkli ışık konisi
+  g.poly([x1 + 60, y1 - 26, x1 + 30, y2 - 4, x1 + 110, y2 - 4]).fill({ color: 0xf472b6, alpha: 0.07 });
+  g.poly([x2 - 60, y1 - 26, x2 - 110, y2 - 4, x2 - 30, y2 - 4]).fill({ color: 0x38bdf8, alpha: 0.07 });
+
+  // yan hoparlör kuleleri
+  for (const sx of [x1 - 26, x2 + 26]) {
+    g.roundRect(sx - 11, y1 - 6, 22, 54, 3).fill(0x1c1226);
+    g.roundRect(sx - 11, y1 - 6, 22, 54, 3).stroke({ width: 1.5, color: 0x0f0a16 });
+    g.circle(sx, y1 + 10, 7).fill(0x2a1d38);
+    g.circle(sx, y1 + 10, 7).stroke({ width: 1.2, color: 0x7a5588, alpha: 0.8 });
+    g.circle(sx, y1 + 10, 2.5).fill({ color: 0xf472b6, alpha: 0.6 });
+    g.circle(sx, y1 + 32, 5).fill(0x2a1d38);
+    g.circle(sx, y1 + 32, 5).stroke({ width: 1, color: 0x7a5588, alpha: 0.6 });
+  }
+
+  worldContainer.addChild(g);
+
+  // "SAHNE" tabelası, perdenin üstünde
+  const sign = new Text({
+    text: 'SAHNE',
+    style: { fill: 0xf9a8d4, fontSize: 9, fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: 3 },
+  });
+  sign.anchor.set(0.5, 0.5);
+  sign.x = (x1 + x2) / 2;
+  sign.y = y1 - 22;
+  sign.alpha = 0.85;
+  worldContainer.addChild(sign);
+}
+
 export function createDecor(worldContainer: Container): void {
   drawBarCounter(worldContainer);
   drawNeonSign(worldContainer);
   drawPendantLights(worldContainer);
+  drawStage(worldContainer);
 
   drawDartBoard(worldContainer, 1040, 50);
   drawJukebox(worldContainer, JUKEBOX_POS.x, JUKEBOX_POS.y);

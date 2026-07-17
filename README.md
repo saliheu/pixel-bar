@@ -1,6 +1,17 @@
 # Piksel Bar 🕹️ — 2D Sanal Bar & Sohbet
 
-Kullanıcıların takma ad, avatar rengi ve şapka seçerek girdiği, **4 salondan** (Neon, Arcade, Lofi, Disko — her biri 25 kişilik, toplam 100 eşzamanlı oyuncu) birini seçip katıldığı gerçek zamanlı bir web uygulaması. Her salon kendi 2D neon bar haritasında yaşar: oyuncular birbirini yürürken görür, masalara oturup rastgele biriyle eşleşerek Taş-Kağıt-Makas, Retro Pong, Hafıza Kartı veya Refleks Düellosu oynar ya da sadece sohbet eder. Barmen içki servis eder, dans pistinde 2+ kişi dans edince parti başlar.
+Kullanıcıların takma ad, avatar rengi ve şapka seçerek girdiği, **4 salondan** (Neon, Arcade, Lofi, Disko — her biri 25 kişilik, toplam 100 eşzamanlı oyuncu) birini seçip katıldığı gerçek zamanlı bir web uygulaması. Her salon kendi 2D neon bar haritasında yaşar: oyuncular birbirini yürürken görür, masalara oturup rastgele biriyle eşleşerek **Taş-Kağıt-Makas, Retro Pong, Hafıza Kartı, Refleks Düellosu, Penaltı veya Frikik** oynar ya da sadece sohbet eder. Sahnede gitar/bateri çalınır, barmen içki servis eder, dans pistinde 2+ kişi dans edince parti başlar.
+
+## Oyunlar
+
+| Oyun | Mekanik |
+|---|---|
+| Taş-Kağıt-Makas | Kör seçim; ilk 5 galibiyeti alan maçı kazanır |
+| Retro Pong | Gerçek zamanlı raket; ilk 5 gol |
+| Hafıza Kartı | Sıralı kart eşleştirme, 8 çift |
+| Refleks Düellosu | Yeşil sinyalde önce basan turu alır; erken basan turu kaybeder, ilk 3 tur |
+| **Penaltı** | Şutör kale ağzına serbest nişan alır, güç ve isabet çubuklarını durdurur. Sert şut kalecinin erişimini daraltır ama isabet çubuğu hızlanır (ıska riski). Kaleci kör olarak uzanma noktası seçer; top erişim çemberine düşerse kurtarır. 5'er vuruş, eşitlikte altın vuruş |
+| **Frikik (Duvarı Aş)** | Penaltı mekaniğinin üstüne **baraj**: her vuruşta yeri değişir. Falso kaydırıcısıyla topu barajın etrafından dolandırman ya da üstünden aşırman gerekir; canlı yörünge önizlemesi yolun açık olup olmadığını gösterir |
 
 ## Salon (oda) sistemi
 
@@ -44,7 +55,8 @@ Tarayıcıda `http://localhost:5173` açın. İkinci bir sekme/pencere açarak �
 | `1`–`6` | Emote: karakter animasyonu oynatır (👋 el sallar, 😂 güler, ❤️ kalp, 🎉 kutlar, 😮 şaşırır, 🕺 dans eder) |
 | Alt-ortadaki çubuk | Dünya sohbeti: yakındaki oyunculara konuşma baloncuğu olarak görünür |
 | `↑` / `↓` | Pong'da raket kontrolü |
-| `Boşluk` / büyük buton | Refleks Düellosu'nda basma |
+| `Boşluk` / büyük buton | Refleks Düellosu'nda basma; Penaltı/Frikik'te güç ve isabet çubuklarını durdurma |
+| Fare | Penaltı/Frikik'te kale ağzına nişan alma ve kaleci uzanma noktası seçme |
 
 ## Dağıtım (Deployment)
 
