@@ -238,6 +238,12 @@ const INTRO_SPOT_MS = 2800;
 // isimli karşılama banner'ı ve barmen selamıyla karşılanır.
 function playIntro(): void {
   worldContainer.alpha = 0;
+  // Güvence: açılış solması ticker'a bağlı. Ticker herhangi bir nedenle
+  // gecikirse/durursa dünya kalıcı olarak görünmez kalmasın diye zamanlayıcıyla
+  // da tam görünürlüğe çekilir (setTimeout ticker'dan bağımsız çalışır).
+  setTimeout(() => {
+    worldContainer.alpha = 1;
+  }, 1500);
 
   const g = new Graphics();
   for (let i = 5; i >= 1; i--) {
@@ -247,6 +253,14 @@ function playIntro(): void {
   g.y = state.self.y;
   worldContainer.addChild(g);
   introSpot = { g, startedAt: performance.now() };
+  // spot ışığı da ticker'dan bağımsız olarak temizlenir
+  setTimeout(() => {
+    if (introSpot) {
+      worldContainer.removeChild(introSpot.g);
+      introSpot.g.destroy();
+      introSpot = null;
+    }
+  }, INTRO_SPOT_MS + 400);
 
   const banner = document.createElement('div');
   banner.className = 'welcome-banner';

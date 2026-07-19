@@ -1,7 +1,5 @@
-import { Application } from 'pixi.js';
 import { AVATAR_PALETTE, HATS, BARS, BAR_CAPACITY, LOBBIES_URL, NAME_MAX_LENGTH, NAME_MIN_LENGTH } from '../config.js';
 import { HAT_ICONS } from './icons.js';
-import { createPlayerVisual, updatePlayerVisual, playEmote, type PlayerVisual } from '../pixi/player.js';
 import { isTouchLayout } from '../input/touch.js';
 
 const NAME_STORAGE_KEY = 'pikselbar.name';
@@ -53,14 +51,13 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
   nameInput.value = localStorage.getItem(NAME_STORAGE_KEY) ?? '';
   card.appendChild(nameInput);
 
-  // ---- canlı avatar önizlemesi (seçilen renk + şapkayı gerçek karakterle gösterir) ----
+  // ---- canlı avatar önizlemesi ----
+  // Kutu burada oluşturulur (renk seçiminin üstünde dursun diye) ama çizim,
+  // selectedColor/selectedHat tanımlandıktan SONRA başlatılır (TDZ hatası olmasın).
   const previewEl = document.createElement('div');
   previewEl.className = 'join-screen__preview';
   card.appendChild(previewEl);
   let previewRedraw: () => void = () => {};
-  const previewCleanup = setupAvatarPreview(previewEl, () => selectedColor, () => selectedHat, (fn) => {
-    previewRedraw = fn;
-  });
 
   const colorLabel = document.createElement('div');
   colorLabel.className = 'join-screen__label';
@@ -118,6 +115,11 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
   });
   hatButtons[selectedHat].classList.add('join-screen__hat--selected');
   card.appendChild(hatRow);
+
+  // renk ve şapka artık tanımlı: önizlemeyi çiz ve yeniden çizici fonksiyonu bağla
+  const previewCleanup = setupAvatarPreview(previewEl, () => selectedColor, () => selectedHat, (fn) => {
+    previewRedraw = fn;
+  });
 
   // ---- Oda seçimi: 4 salon, canlı doluluk bilgisiyle ----
   const barLabel = document.createElement('div');
@@ -235,65 +237,65 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
 }
 
 // Küçük bağımsız Pixi sahnesi: seçilen renk+şapkayı gerçek karakterle canlı gösterir.
+// Avatar önizlemesi SVG ile çizilir. Bilerek Pixi KULLANILMAZ: ikinci bir
+// Application ikinci bir WebGL bağlamı açar ve tarayıcı bağlam sınırına
+// dayandığında ana sahnenin bağlamını düşürebilir (dünya kalıcı olarak boş kalır).
+// Şekiller pixi/player.ts'teki ayakta duruş ile aynı koordinatlardadır.
+function avatarSvg(colorIdx: number, hat: number): string {
+  const c = `#${(AVATAR_PALETTE[colorIdx] ?? AVATAR_PALETTE[0]).toString(16).padStart(6, '0')}`;
+  const outline = '#1c1730';
+
+  let hatSvg = '';
+  if (hat === 1) {
+    // kasket: yarım daire + siperlik + tepe düğmesi
+    hatSvg =
+      `<path d="M -9.5 -38 A 9.5 9.5 0 0 1 9.5 -38 Z" fill="#ef4444" stroke="#991b1b" stroke-width="1.4"/>` +
+      `<rect x="0" y="-41.5" width="14" height="3" rx="1.5" fill="#dc2626"/>` +
+      `<circle cx="0" cy="-45" r="1.7" fill="#fecaca"/>`;
+  } else if (hat === 2) {
+    hatSvg =
+      `<polygon points="-7,-39 -7,-46 -3.5,-42.5 0,-48 3.5,-42.5 7,-46 7,-39" fill="#fbbf24" stroke="#b45309" stroke-width="1"/>` +
+      `<circle cx="-4.2" cy="-41" r="1" fill="#ef4444"/><circle cx="0" cy="-41" r="1" fill="#38bdf8"/><circle cx="4.2" cy="-41" r="1" fill="#4ade80"/>`;
+  } else if (hat === 3) {
+    hatSvg =
+      `<polygon points="-8.5,-41 -7,-49 -2.5,-42.5" fill="${c}" stroke="${outline}" stroke-width="1.3"/>` +
+      `<polygon points="8.5,-41 7,-49 2.5,-42.5" fill="${c}" stroke="${outline}" stroke-width="1.3"/>` +
+      `<polygon points="-7.2,-42 -6.6,-46.5 -4.2,-42.6" fill="#f9a8d4"/>` +
+      `<polygon points="7.2,-42 6.6,-46.5 4.2,-42.6" fill="#f9a8d4"/>`;
+  } else if (hat === 4) {
+    hatSvg =
+      `<polygon points="-5.5,-42 5.5,-42 0,-53" fill="#8b5cf6" stroke="#5b21b6" stroke-width="1.2"/>` +
+      `<line x1="-3.6" y1="-45.8" x2="3.6" y2="-45.8" stroke="#f472b6" stroke-width="1.6"/>` +
+      `<line x1="-1.9" y1="-49.4" x2="1.9" y2="-49.4" stroke="#38bdf8" stroke-width="1.6"/>` +
+      `<circle cx="0" cy="-54" r="2" fill="#fbbf24"/>`;
+  }
+
+  return `<svg viewBox="-22 -58 44 74" class="join-avatar" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="0" cy="8" rx="14" ry="5" fill="#05030c" opacity="0.45"/>
+    <line x1="-4" y1="-6" x2="-6" y2="9" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/>
+    <line x1="4" y1="-6" x2="6" y2="9" stroke="${c}" stroke-width="3.6" stroke-linecap="round"/>
+    <line x1="-6" y1="-20" x2="-9" y2="-8" stroke="${c}" stroke-width="3.2" stroke-linecap="round"/>
+    <line x1="6" y1="-20" x2="9" y2="-8" stroke="${c}" stroke-width="3.2" stroke-linecap="round"/>
+    <rect x="-9" y="-26" width="18" height="20" rx="9" fill="${c}" stroke="${outline}" stroke-width="2"/>
+    <circle cx="0" cy="-33" r="11" fill="${c}" stroke="${outline}" stroke-width="2"/>
+    <circle cx="-3.8" cy="-33.4" r="1.4" fill="${outline}"/>
+    <circle cx="3.8" cy="-33.4" r="1.4" fill="${outline}"/>
+    <path d="M -2.6 -29.5 A 2.6 2.6 0 0 0 2.6 -29.5" fill="none" stroke="${outline}" stroke-width="1.2" stroke-linecap="round"/>
+    ${hatSvg}
+  </svg>`;
+}
+
 // register(fn) ile dışarıya bir "yeniden çiz" fonksiyonu verir; renk/şapka değişince çağrılır.
-// Dönen fonksiyon çağrılınca sahne yok edilir (WebGL bağlamı serbest kalır).
 function setupAvatarPreview(
   host: HTMLElement,
   getColor: () => number,
   getHat: () => number,
   register: (redraw: () => void) => void,
 ): () => void {
-  const W = 128;
-  const H = 150;
-  let app: Application | null = null;
-  let visual: PlayerVisual | null = null;
-  let destroyed = false;
-  let last = performance.now();
-  let nextEmoteAt = performance.now() + 2600;
-
-  const app2 = new Application();
-  void app2
-    .init({ width: W, height: H, backgroundAlpha: 0, antialias: true })
-    .then(() => {
-      if (destroyed) {
-        app2.destroy(true);
-        return;
-      }
-      app = app2;
-      host.appendChild(app.canvas);
-      rebuild();
-      app.ticker.add(() => {
-        if (!visual) return;
-        const now = performance.now();
-        const dt = now - last;
-        last = now;
-        // arada bir küçük emote oynatıp sahneyi canlı tut
-        if (now >= nextEmoteAt) {
-          const set = ['👋', '😂', '🎉', '👏'];
-          playEmote(visual, set[Math.floor(Math.random() * set.length)]);
-          nextEmoteAt = now + 3600 + Math.random() * 2600;
-        }
-        updatePlayerVisual(visual, W / 2, H - 26, false, dt);
-      });
-    });
-
-  function rebuild(): void {
-    if (!app) return;
-    if (visual) app.stage.removeChild(visual.container);
-    visual = createPlayerVisual('', getColor(), getHat(), W / 2, H - 26, true);
-    visual.container.scale.set(1.35);
-    visual.label.visible = false;
-    visual.nameTagBg.visible = false;
-    app.stage.addChild(visual.container);
-  }
-
-  register(() => rebuild());
-
-  return () => {
-    destroyed = true;
-    if (app) {
-      app.destroy(true);
-      app = null;
-    }
+  const draw = (): void => {
+    host.innerHTML = avatarSvg(getColor(), getHat());
   };
+  draw();
+  register(draw);
+  return () => {}; // temizlenecek kaynak yok
 }
