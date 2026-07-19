@@ -228,7 +228,7 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
   hint.className = 'join-screen__hint';
   // dokunmatikte klavye ipucu yerine parmak kontrolleri anlatılır
   hint.innerHTML = isTouchLayout()
-    ? 'Sol tarafa basılı tutup sürükleyerek gez · <kbd>E</kbd> ile otur'
+    ? 'Sürükleyerek gez · Dokunarak otur ve oyuna gir'
     : '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ya da ok tuşları ile gez · <kbd>E</kbd> ile otur';
   overlay.appendChild(hint);
 

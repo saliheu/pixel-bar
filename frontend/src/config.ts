@@ -13,6 +13,10 @@ export const PONG_COURT_H = 400;
 export const PONG_PADDLE_H = 80;
 export const PONG_PADDLE_W = 12;
 
+// backend/src/config.ts PUNCH_RANGE ile aynı tutulmalı (dokunmatik yumruk
+// düğmesinin ne zaman görüneceğini belirler)
+export const PUNCH_RANGE = 70;
+
 export const CHAT_MAX_LENGTH = 200;
 export const MEMORY_GRID_SIZE = 16;
 export const WORLD_CHAT_RADIUS = 260;

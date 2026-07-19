@@ -2364,78 +2364,44 @@ body.in-room:not(.room-pong) #app {
 }
 
 /* ============ Dokunmatik kontroller ============ */
-.touch-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  pointer-events: none; /* dokunmalar window dinleyicisiyle yakalanır */
-}
-.touch-layer.hidden {
-  display: none;
-}
-.touch-joy {
-  position: fixed;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  pointer-events: none;
-}
-.touch-joy--on {
-  opacity: 1;
-}
-.touch-joy__base {
-  width: 116px;
-  height: 116px;
-  border: 2px solid rgba(125, 211, 252, 0.35);
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.12), rgba(13, 10, 24, 0.35));
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.18);
-}
-.touch-joy__knob {
-  width: 52px;
-  height: 52px;
-  border: 2px solid rgba(125, 211, 252, 0.85);
-  background: radial-gradient(circle at 35% 30%, rgba(125, 211, 252, 0.9), rgba(56, 189, 248, 0.5));
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
-}
-
-.touch-actions {
+/* Joystick GÖRÜNMEZ: hareket sürükleyerek yapılır, ekranda kontrol kutusu yoktur.
+   Tek görünür öğe, yalnızca menzilde biri varken beliren küçük yumruk düğmesidir. */
+.touch-punch {
   position: fixed;
   right: calc(14px + env(safe-area-inset-right, 0px));
-  /* sohbet (alt) ve emote çubuğunun üstünde kalır */
   bottom: calc(122px + env(safe-area-inset-bottom, 0px));
   z-index: 46;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.touch-actions.hidden {
-  display: none;
-}
-.touch-btn {
-  width: 62px;
-  height: 62px;
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
-  font-family: var(--font-pixel);
-  font-size: 15px;
-  color: #06121c;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: #fecaca;
+  background: rgba(63, 29, 43, 0.55);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.1s ease, filter 0.1s ease;
+  animation: punch-in 0.18s ease both;
+  transition: transform 0.1s ease, background 0.12s ease;
 }
-.touch-btn--down {
-  transform: scale(0.92);
-  filter: brightness(1.15);
+.touch-punch svg {
+  width: 22px;
+  height: 22px;
 }
-.touch-btn--interact {
-  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-cyan-soft));
-  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.4);
+.touch-punch.hidden {
+  display: none;
 }
-.touch-btn--punch {
-  background: linear-gradient(135deg, #f87171, #fca5a5);
-  box-shadow: 0 6px 18px rgba(248, 113, 113, 0.35);
+.touch-punch--down {
+  transform: scale(0.9);
+  background: rgba(127, 29, 29, 0.75);
+}
+@keyframes punch-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* ============ Mobil / dokunmatik yerleşim ============ */
@@ -2446,8 +2412,7 @@ body.touch-mode {
 /* Oyun alanı ve kontroller kaydırma/zoom yerine oyun girişine gider;
    oda panelleri ise dikey kaydırılabilir kalır. */
 body.touch-mode .game-wrap,
-body.touch-mode .touch-layer,
-body.touch-mode .touch-actions {
+body.touch-mode .touch-punch {
   touch-action: none;
 }
 body.touch-mode .room-view,

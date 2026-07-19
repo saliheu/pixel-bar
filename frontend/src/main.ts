@@ -1,10 +1,10 @@
 ﻿import { Application, Container } from 'pixi.js';
 import './style.css';
-import { MAP_WIDTH, MAP_HEIGHT, PLAYER_MIN_Y, MOVE_SEND_INTERVAL_MS, MOVE_SPEED_PX_PER_S, PONG_COURT_W, PONG_COURT_H } from './config.js';
+import { MAP_WIDTH, MAP_HEIGHT, PLAYER_MIN_Y, MOVE_SEND_INTERVAL_MS, MOVE_SPEED_PX_PER_S, PONG_COURT_W, PONG_COURT_H, PUNCH_RANGE } from './config.js';
 import { connect, onMessage, onStatus, onRejected, sendMessage } from './net/socket.js';
 import { BARS } from './config.js';
 import { getMoveVector, getPongDir, type MoveVector } from './input/keyboard.js';
-import { isTouchLayout, initTouchControls, setTouchControlsMode } from './input/touch.js';
+import { isTouchLayout, initTouchControls, setTouchControlsMode, setPunchAvailable } from './input/touch.js';
 import {
   state,
   upsertPlayer,
@@ -1001,6 +1001,20 @@ app.ticker.add(() => {
   }
 
   updateCamera(); // mobilde kamerayı oyuncuya kilitler (masaüstünde no-op)
+
+  // Dokunmatik yumruk düğmesi yalnızca menzilde ayakta biri varken görünür.
+  if (touchLayout) {
+    let punchTarget = false;
+    if (!state.room && !state.sittingZoneId) {
+      for (const p of state.players.values()) {
+        if (Math.hypot(p.x - state.self.x, p.y - state.self.y) <= PUNCH_RANGE) {
+          punchTarget = true;
+          break;
+        }
+      }
+    }
+    setPunchAvailable(punchTarget);
+  }
 
   if (state.room?.kind === 'pong' && state.pong && state.room.pongSides && state.room.playerIds.length === 2) {
     const dir = getPongDir();
