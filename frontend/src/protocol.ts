@@ -15,8 +15,9 @@ export type ZoneType =
   | 'stage_guitar' // sahnede gitar koltuğu (oda açmaz, çalma animasyonu)
   | 'stage_drums' // sahnede bateri koltuğu (oda açmaz, çalma animasyonu)
   | 'penalty_spot' // penaltı sahası (2 kişilik oyun)
-  | 'freekick_spot'; // frikik sahası: barajı aşma (2 kişilik oyun)
-export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex' | 'penalty' | 'freekick';
+  | 'freekick_spot' // frikik sahası: barajı aşma (2 kişilik oyun)
+  | 'dart_board'; // dart tahtası: 301 (2 kişilik oyun)
+export type RoomKind = 'rps' | 'pong' | 'memory' | 'chat' | 'reflex' | 'penalty' | 'freekick' | 'dart';
 export type Choice = 'rock' | 'paper' | 'scissors';
 
 // Penaltı ve frikik aynı "şut" iskeletini paylaşır (shootout).
@@ -73,7 +74,9 @@ export type ClientMessage =
   | { type: 'punch'; payload: Record<string, never> }
   // Şut: nişan noktası + güç + isabet (+ frikikte falso). Kaleci uzanma noktası seçer.
   | { type: 'shoot'; payload: { aimX: number; aimY: number; power: number; accuracy: number; curve: number } }
-  | { type: 'dive'; payload: { x: number; y: number } };
+  | { type: 'dive'; payload: { x: number; y: number } }
+  // Dart atışı: tahta koordinatları (-100..100, merkez 0,0). Sunucu hafif sapma ekler.
+  | { type: 'dart_throw'; payload: { x: number; y: number } };
 
 // ---- Server -> Client ----
 export type ServerMessage =
@@ -106,6 +109,23 @@ export type ServerMessage =
   | { type: 'leaderboard'; payload: { top: { name: string; wins: number }[] } }
   // Barmen repliği: metni sunucu seçer ki salondaki herkes aynı sözü görsün.
   | { type: 'bartender'; payload: { text: string } }
+  // Toplanabilir jeton: salonda beliren/kaybolan altın jeton (null = şu an yok)
+  | { type: 'token_state'; payload: { token: { x: number; y: number } | null } }
+  // Oyuncunun bedava şarkı hakkı sayacı (jeton toplayınca artar)
+  | { type: 'free_songs'; payload: { count: number; gained: boolean } }
+  // Dart (301) durumu. phase 'aim': sıradaki oyuncu atıyor; 'result': son atış gösteriliyor.
+  | {
+      type: 'dart_state';
+      payload: {
+        phase: 'aim' | 'result';
+        thrower: string;
+        remaining: Record<string, number>; // 301'den geri sayım
+        turnDarts: { x: number; y: number; score: number }[]; // bu turda atılanlar (0-3)
+        lastDart: { x: number; y: number; score: number } | null;
+        bust: boolean; // son atış turu yaktıysa
+        matchWinner: string | null;
+      };
+    }
   // Yumruk: kurban yeni konumuna savrulur ve stunMs boyunca yerde kalır
   | { type: 'punch_event'; payload: { attacker: string; victim: string; victimX: number; victimY: number; stunMs: number } }
   // Penaltı/frikik durumu: pick aşamasında şutör nişan alır, kaleci uzanır; result'ta vuruş sonucu gelir

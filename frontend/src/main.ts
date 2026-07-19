@@ -1,9 +1,10 @@
 ﻿import { Application, Container } from 'pixi.js';
 import './style.css';
-import { MAP_WIDTH, MAP_HEIGHT, PLAYER_MIN_Y, MOVE_SEND_INTERVAL_MS, MOVE_SPEED_PX_PER_S } from './config.js';
+import { MAP_WIDTH, MAP_HEIGHT, PLAYER_MIN_Y, MOVE_SEND_INTERVAL_MS, MOVE_SPEED_PX_PER_S, PONG_COURT_W, PONG_COURT_H } from './config.js';
 import { connect, onMessage, onStatus, onRejected, sendMessage } from './net/socket.js';
 import { BARS } from './config.js';
 import { getMoveVector, getPongDir, type MoveVector } from './input/keyboard.js';
+import { isTouchLayout, initTouchControls, setTouchControlsMode } from './input/touch.js';
 import {
   state,
   upsertPlayer,
@@ -56,6 +57,9 @@ import {
   JUKEBOX_INTERACT_RADIUS,
   createJukeboxGlow,
   tickJukeboxGlow,
+  createCoinToken,
+  setCoinToken,
+  tickCoinToken,
 } from './pixi/decor.js';
 import { createPongVisual, updatePongVisual, showPongWinner, hidePongWinner } from './pixi/pong.js';
 import { initStatusOverlay, updateStatusOverlay } from './ui/statusOverlay.js';
@@ -64,6 +68,7 @@ import { initRpsPanel, showRpsPanel, hideRpsPanel, renderRpsResult, setRpsOppone
 import { initMemoryPanel, showMemoryPanel, hideMemoryPanel, renderMemoryState } from './ui/memoryPanel.js';
 import { initReflexPanel, showReflexPanel, hideReflexPanel, renderReflexState } from './ui/reflexPanel.js';
 import { initShootoutPanel, showShootoutPanel, hideShootoutPanel, renderShootoutState } from './ui/shootoutPanel.js';
+import { initDartPanel, showDartPanel, hideDartPanel, renderDartState } from './ui/dartPanel.js';
 import { createPromptBadge, updatePromptBadge, updateStandUpBadge, updateJukeboxBadge } from './ui/promptBubble.js';
 import { initJukebox, renderJukeboxState, toggleJukeboxPanel, jukeboxHasSong } from './ui/jukebox.js';
 import { initWorldChatBar, setWorldChatBarVisible } from './ui/worldChatBar.js';
@@ -108,6 +113,7 @@ initRpsPanel(roomStage);
 initMemoryPanel(roomStage);
 initReflexPanel(roomStage);
 initShootoutPanel(roomStage);
+initDartPanel(roomStage);
 initWorldChatBar(appRoot);
 initEmoteBar(appRoot, (emote) => {
   if (selfVisual) playEmote(selfVisual, emote);
@@ -116,8 +122,20 @@ initEmoteBar(appRoot, (emote) => {
   if (emote === '🕺' && onFloor(state.self.x, state.self.y)) questComplete('dance');
 });
 
+// Mobilde sahne ekranı kaplar ve kamera oyuncuyu takip eder; masaüstünde
+// haritanın tamamı sabit 1200x700 tuvalde görünür.
+const touchLayout = isTouchLayout();
+if (touchLayout) document.body.classList.add('touch-mode');
+
 const app = new Application();
-await app.init({ width: MAP_WIDTH, height: MAP_HEIGHT, background: 0x241c3d, antialias: true });
+await app.init({
+  width: touchLayout ? window.innerWidth : MAP_WIDTH,
+  height: touchLayout ? window.innerHeight : MAP_HEIGHT,
+  background: 0x241c3d,
+  antialias: true,
+  resolution: touchLayout ? Math.min(window.devicePixelRatio || 1, 2) : 1,
+  autoDensity: touchLayout,
+});
 gameWrap.appendChild(app.canvas);
 
 const worldContainer = new Container();
@@ -130,16 +148,68 @@ const stringLights = createStringLights(worldContainer);
 const dustLayer = createDustLayer(worldContainer);
 const ambientParticles = createAmbientParticles(worldContainer);
 const jukeboxGlow = createJukeboxGlow(worldContainer);
+const coinToken = createCoinToken(worldContainer);
 
 const overlayContainer = new Container();
 overlayContainer.visible = false;
 app.stage.addChild(overlayContainer);
 
 const pongVisual = createPongVisual();
-pongVisual.container.x = (MAP_WIDTH - 700) / 2;
-pongVisual.container.y = (MAP_HEIGHT - 400) / 2;
 pongVisual.container.visible = true;
 overlayContainer.addChild(pongVisual.container);
+
+// Pong kortu ekrana ortalanır ve sığmıyorsa küçültülür (mobil dahil).
+function layoutPongOverlay(): void {
+  const vw = app.screen.width;
+  const vh = app.screen.height;
+  const s = Math.min(1, (vw - 16) / PONG_COURT_W, (vh - 16) / PONG_COURT_H);
+  overlayContainer.scale.set(s);
+  overlayContainer.x = (vw - PONG_COURT_W * s) / 2;
+  overlayContainer.y = (vh - PONG_COURT_H * s) / 2;
+}
+layoutPongOverlay();
+
+// Mobil kamera: dünyayı büyütüp oyuncuyu ortalar, harita kenarlarına clamp'ler.
+let camZoom = 1;
+function computeCamZoom(): void {
+  if (!touchLayout) {
+    camZoom = 1;
+    return;
+  }
+  const minSide = Math.min(app.screen.width, app.screen.height);
+  camZoom = Math.min(2, Math.max(1, 520 / minSide));
+}
+computeCamZoom();
+
+function updateCamera(): void {
+  if (!touchLayout) return;
+  const vw = app.screen.width;
+  const vh = app.screen.height;
+  const z = camZoom;
+  worldContainer.scale.set(z);
+
+  const worldW = MAP_WIDTH * z;
+  const worldH = MAP_HEIGHT * z;
+  // harita ekrandan genişse oyuncuyu takip et, değilse ortala
+  worldContainer.x = worldW <= vw
+    ? (vw - worldW) / 2
+    : Math.min(0, Math.max(vw - worldW, vw / 2 - state.self.x * z));
+  worldContainer.y = worldH <= vh
+    ? (vh - worldH) / 2
+    : Math.min(0, Math.max(vh - worldH, vh / 2 - state.self.y * z));
+}
+
+window.addEventListener('resize', () => {
+  if (!touchLayout) return;
+  // Mobilde ekran klavyesi açılınca da resize tetiklenir; yazarken sahneyi
+  // yeniden boyutlandırmak zıplamaya yol açtığı için atlanır.
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  app.renderer.resize(window.innerWidth, window.innerHeight);
+  computeCamZoom();
+  layoutPongOverlay();
+  updateCamera();
+});
 
 const promptBadge = createPromptBadge();
 worldContainer.addChild(promptBadge.container);
@@ -204,6 +274,7 @@ const GAME_LABELS: Record<string, string> = {
   reflex: 'Refleks Düellosu',
   penalty: 'Penaltı',
   freekick: 'Frikik',
+  dart: 'Dart',
   chat: 'Sohbet',
 };
 
@@ -357,6 +428,8 @@ onMessage((msg) => {
       } else if (msg.payload.kind === 'penalty' || msg.payload.kind === 'freekick') {
         showShootoutPanel(msg.payload.kind, waiting);
         if (!waiting) sfx.whistle();
+      } else if (msg.payload.kind === 'dart') {
+        showDartPanel(waiting);
       } else if (msg.payload.kind === 'pong') {
         state.pong = { ball: { x: 350, y: 200 }, paddles: {}, score: {}, ended: null };
         if (waiting) showPongWinner(pongVisual, 'RAKİP BEKLENİYOR...');
@@ -464,6 +537,29 @@ onMessage((msg) => {
       }
       break;
     }
+    case 'dart_state': {
+      renderDartState(
+        msg.payload.phase,
+        msg.payload.thrower,
+        msg.payload.remaining,
+        msg.payload.turnDarts,
+        msg.payload.lastDart,
+        msg.payload.bust,
+        msg.payload.matchWinner,
+        state.selfId,
+      );
+      if (msg.payload.phase === 'result' && msg.payload.lastDart) {
+        if (msg.payload.bust) sfx.lose();
+        else if (msg.payload.lastDart.score >= 40) sfx.golScored();
+        else if (msg.payload.lastDart.score > 0) sfx.goal();
+      }
+      if (msg.payload.matchWinner) {
+        if (msg.payload.matchWinner === state.selfId) sfx.win();
+        else sfx.lose();
+        questComplete('game');
+      }
+      break;
+    }
     case 'punch_event': {
       // saldırgan yumruk sallar, kurban savrulup yere serilir
       const attackerV = msg.payload.attacker === state.selfId ? selfVisual : playerVisuals.get(msg.payload.attacker);
@@ -551,6 +647,17 @@ onMessage((msg) => {
     case 'bartender': {
       // metni sunucu seçti: salondaki herkes aynı repliği görür
       bartenderSay(bartender, msg.payload.text, performance.now());
+      break;
+    }
+    case 'token_state': {
+      setCoinToken(coinToken, msg.payload.token);
+      break;
+    }
+    case 'free_songs': {
+      if (msg.payload.gained) {
+        sfx.match();
+        showToast(`Jeton topladın! Bedava şarkı hakkı: ${msg.payload.count}`);
+      }
       break;
     }
     case 'error': {
@@ -658,12 +765,17 @@ function setRoomView(kind: import('./protocol.js').RoomKind | null): void {
   document.body.classList.toggle('room-pong', kind === 'pong');
   worldContainer.visible = !inRoom;
 
-  if (kind === 'pong') {
-    roomStage.appendChild(gameWrap); // canvas'ı oyun sahnesine taşı
-  } else if (gameWrap.parentElement !== appRoot) {
-    appRoot.insertBefore(gameWrap, appRoot.firstChild); // dünya görünümüne geri koy
+  // Mobilde tuval zaten tam ekran sabit; taşımaya gerek yok (ve taşımak
+  // fixed konumlandırmayı bozar). Masaüstünde pong tuvali sahneye taşınır.
+  if (!touchLayout) {
+    if (kind === 'pong') {
+      roomStage.appendChild(gameWrap);
+    } else if (gameWrap.parentElement !== appRoot) {
+      appRoot.insertBefore(gameWrap, appRoot.firstChild);
+    }
   }
   roomView.classList.toggle('hidden', !inRoom);
+  setTouchControlsMode(!inRoom ? 'world' : kind === 'pong' ? 'pong' : 'hidden');
 }
 
 function leaveRoomView(): void {
@@ -676,6 +788,7 @@ function leaveRoomView(): void {
   hideMemoryPanel();
   hideReflexPanel();
   hideShootoutPanel();
+  hideDartPanel();
   overlayContainer.visible = false;
   setWorldChatBarVisible(true);
   setEmoteBarVisible(true);
@@ -685,11 +798,8 @@ function leaveRoomView(): void {
   }
 }
 
-// ---- 'E' tuşu: masaya/banka otur veya koltuktan kalk ----
-window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() !== 'e') return;
-  const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+// Otur / kalk / oyuna gir / müzik kutusu — 'E' tuşu ve dokunmatik E düğmesi paylaşır.
+function doInteract(): void {
   if (state.room) return;
   if (state.sittingZoneId) {
     sendMessage({ type: 'seat_leave', payload: {} });
@@ -700,18 +810,29 @@ window.addEventListener('keydown', (e) => {
   } else if (nearJukebox()) {
     toggleJukeboxPanel();
   }
-});
+}
 
-// ---- 'F' tuşu: yakındaki oyuncuya yumruk (hedefi sunucu seçer) ----
-window.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() !== 'f') return;
-  const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+// Yakındaki oyuncuya yumruk (hedefi sunucu seçer) — 'F' tuşu ve dokunmatik F düğmesi.
+function doPunch(): void {
   if (state.room || state.sittingZoneId) return;
   if (performance.now() < selfStunnedUntil) return; // yerdeyken yumruk yok
   sendMessage({ type: 'punch', payload: {} });
   if (selfVisual) playPunch(selfVisual); // menzilde kimse yoksa da sallanır
+}
+
+function isTypingTarget(): boolean {
+  const tag = document.activeElement?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
+window.addEventListener('keydown', (e) => {
+  if (isTypingTarget()) return;
+  const k = e.key.toLowerCase();
+  if (k === 'e') doInteract();
+  else if (k === 'f') doPunch();
 });
+
+initTouchControls(document.body, { onInteract: doInteract, onPunch: doPunch });
 
 function nearJukebox(): boolean {
   return Math.hypot(state.self.x - JUKEBOX_POS.x, state.self.y - JUKEBOX_POS.y) < JUKEBOX_INTERACT_RADIUS;
@@ -797,6 +918,7 @@ app.ticker.add(() => {
   tickBartender(bartender, now);
   tickStringLights(stringLights, now);
   tickJukeboxGlow(jukeboxGlow, now, jukeboxHasSong());
+  tickCoinToken(coinToken, now);
 
   // Sahne: koltuklar doluysa hafif enstrüman sesleri (görsel animasyon oturma pozunda)
   let guitarOn = false;
@@ -863,6 +985,8 @@ app.ticker.add(() => {
     tickSpeechBubble(v, now);
     tickEmote(v, now);
   }
+
+  updateCamera(); // mobilde kamerayı oyuncuya kilitler (masaüstünde no-op)
 
   if (state.room?.kind === 'pong' && state.pong && state.room.pongSides && state.room.playerIds.length === 2) {
     const dir = getPongDir();

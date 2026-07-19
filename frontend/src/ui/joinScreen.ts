@@ -1,16 +1,13 @@
+import { Application } from 'pixi.js';
 import { AVATAR_PALETTE, HATS, BARS, BAR_CAPACITY, LOBBIES_URL, NAME_MAX_LENGTH, NAME_MIN_LENGTH } from '../config.js';
-import { HAT_ICONS, ICON_MONITOR } from './icons.js';
+import { HAT_ICONS } from './icons.js';
+import { createPlayerVisual, updatePlayerVisual, playEmote, type PlayerVisual } from '../pixi/player.js';
+import { isTouchLayout } from '../input/touch.js';
 
 const NAME_STORAGE_KEY = 'pikselbar.name';
 const COLOR_STORAGE_KEY = 'pikselbar.color';
 const HAT_STORAGE_KEY = 'pikselbar.hat';
 const BAR_STORAGE_KEY = 'pikselbar.bar';
-
-function isMobileLike(): boolean {
-  // dar ekran ya da birincil girişi dokunmatik olan cihazlar (dokunmatik ekranlı
-  // laptop'lar 'pointer: fine' bildirdiği için kapıya takılmaz)
-  return window.matchMedia('(max-width: 720px)').matches || window.matchMedia('(pointer: coarse)').matches;
-}
 
 function hexColor(c: number): string {
   return `#${c.toString(16).padStart(6, '0')}`;
@@ -37,18 +34,6 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
   tagline.textContent = 'Arkadaşlarınla takıl, otur, oyna';
   overlay.appendChild(tagline);
 
-  if (isMobileLike()) {
-    const mobileCard = document.createElement('div');
-    mobileCard.className = 'glass-card join-screen__card join-screen__mobile';
-    mobileCard.innerHTML =
-      `<div class="join-screen__mobile-icon">${ICON_MONITOR}</div>` +
-      '<p>Piksel Bar klavye ile oynanan bir masaüstü deneyimi.</p>' +
-      '<p class="join-screen__mobile-sub">Bilgisayardan girince neon ışıklar seni bekliyor.</p>';
-    overlay.appendChild(mobileCard);
-    root.appendChild(overlay);
-    return;
-  }
-
   const card = document.createElement('form');
   card.className = 'glass-card join-screen__card';
 
@@ -67,6 +52,15 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
   nameInput.autocomplete = 'off';
   nameInput.value = localStorage.getItem(NAME_STORAGE_KEY) ?? '';
   card.appendChild(nameInput);
+
+  // ---- canlı avatar önizlemesi (seçilen renk + şapkayı gerçek karakterle gösterir) ----
+  const previewEl = document.createElement('div');
+  previewEl.className = 'join-screen__preview';
+  card.appendChild(previewEl);
+  let previewRedraw: () => void = () => {};
+  const previewCleanup = setupAvatarPreview(previewEl, () => selectedColor, () => selectedHat, (fn) => {
+    previewRedraw = fn;
+  });
 
   const colorLabel = document.createElement('div');
   colorLabel.className = 'join-screen__label';
@@ -90,6 +84,7 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
     swatch.addEventListener('click', () => {
       selectedColor = idx;
       swatchButtons.forEach((b, i) => b.classList.toggle('join-screen__swatch--selected', i === idx));
+      previewRedraw();
     });
     swatchButtons.push(swatch);
     swatchRow.appendChild(swatch);
@@ -116,6 +111,7 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
     btn.addEventListener('click', () => {
       selectedHat = idx;
       hatButtons.forEach((b, i) => b.classList.toggle('join-screen__hat--selected', i === idx));
+      previewRedraw();
     });
     hatButtons.push(btn);
     hatRow.appendChild(btn);
@@ -216,6 +212,7 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
     localStorage.setItem(HAT_STORAGE_KEY, String(selectedHat));
     localStorage.setItem(BAR_STORAGE_KEY, selectedBar);
     clearInterval(lobbyTimer);
+    previewCleanup();
     overlay.classList.add('join-screen--closing');
     overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
     // transitionend bir sebeple gelmezse yine de kaldır
@@ -227,9 +224,76 @@ export function initJoinScreen(root: HTMLElement, onJoin: (name: string, color: 
 
   const hint = document.createElement('div');
   hint.className = 'join-screen__hint';
-  hint.innerHTML = '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ya da ok tuşları ile gez · <kbd>E</kbd> ile otur';
+  // dokunmatikte klavye ipucu yerine parmak kontrolleri anlatılır
+  hint.innerHTML = isTouchLayout()
+    ? 'Sol tarafa basılı tutup sürükleyerek gez · <kbd>E</kbd> ile otur'
+    : '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ya da ok tuşları ile gez · <kbd>E</kbd> ile otur';
   overlay.appendChild(hint);
 
   root.appendChild(overlay);
   nameInput.focus();
+}
+
+// Küçük bağımsız Pixi sahnesi: seçilen renk+şapkayı gerçek karakterle canlı gösterir.
+// register(fn) ile dışarıya bir "yeniden çiz" fonksiyonu verir; renk/şapka değişince çağrılır.
+// Dönen fonksiyon çağrılınca sahne yok edilir (WebGL bağlamı serbest kalır).
+function setupAvatarPreview(
+  host: HTMLElement,
+  getColor: () => number,
+  getHat: () => number,
+  register: (redraw: () => void) => void,
+): () => void {
+  const W = 128;
+  const H = 150;
+  let app: Application | null = null;
+  let visual: PlayerVisual | null = null;
+  let destroyed = false;
+  let last = performance.now();
+  let nextEmoteAt = performance.now() + 2600;
+
+  const app2 = new Application();
+  void app2
+    .init({ width: W, height: H, backgroundAlpha: 0, antialias: true })
+    .then(() => {
+      if (destroyed) {
+        app2.destroy(true);
+        return;
+      }
+      app = app2;
+      host.appendChild(app.canvas);
+      rebuild();
+      app.ticker.add(() => {
+        if (!visual) return;
+        const now = performance.now();
+        const dt = now - last;
+        last = now;
+        // arada bir küçük emote oynatıp sahneyi canlı tut
+        if (now >= nextEmoteAt) {
+          const set = ['👋', '😂', '🎉', '👏'];
+          playEmote(visual, set[Math.floor(Math.random() * set.length)]);
+          nextEmoteAt = now + 3600 + Math.random() * 2600;
+        }
+        updatePlayerVisual(visual, W / 2, H - 26, false, dt);
+      });
+    });
+
+  function rebuild(): void {
+    if (!app) return;
+    if (visual) app.stage.removeChild(visual.container);
+    visual = createPlayerVisual('', getColor(), getHat(), W / 2, H - 26, true);
+    visual.container.scale.set(1.35);
+    visual.label.visible = false;
+    visual.nameTagBg.visible = false;
+    app.stage.addChild(visual.container);
+  }
+
+  register(() => rebuild());
+
+  return () => {
+    destroyed = true;
+    if (app) {
+      app.destroy(true);
+      app = null;
+    }
+  };
 }

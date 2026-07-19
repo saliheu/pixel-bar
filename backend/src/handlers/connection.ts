@@ -9,8 +9,9 @@ import { handleWorldChatSend } from './worldChat.js';
 import { handleEmote } from './emote.js';
 import { sendLeaderboardTo } from './social.js';
 import { bartenderGreet } from './bartender.js';
+import { sendTokenTo } from './token.js';
 import { sendJukeboxTo, handleJukeboxAdd, handleJukeboxEnded, handleJukeboxSkip } from './jukebox.js';
-import { handleRpsChoice, handlePongInput, handleMemoryFlip, handleGameRestart, handleReflexPress, handleShoot, handleDive } from './gameplay.js';
+import { handleRpsChoice, handlePongInput, handleMemoryFlip, handleGameRestart, handleReflexPress, handleShoot, handleDive, handleDartThrow } from './gameplay.js';
 import { handlePunch } from './punch.js';
 import type { ClientMessage } from '../protocol.js';
 import {
@@ -85,6 +86,7 @@ export function handleConnection(
     lastPunchAt: 0,
     stunnedUntil: 0,
     wins: 0,
+    freeSongs: 0,
   };
   players.set(id, player);
 
@@ -106,6 +108,7 @@ export function handleConnection(
   sendLeaderboardTo(id); // salonun mevcut lider tablosu
   bartenderGreet(barId, name); // karşılama repliğini salondaki herkes görür
   sendJukeboxTo(id); // çalan şarkı + kuyruk (varsa)
+  sendTokenTo(id); // salonda o an bir jeton varsa göster
 
   socket.on('pong', () => {
     player.isAlive = true;
@@ -192,6 +195,9 @@ function dispatch(playerId: string, msg: ClientMessage): void {
       break;
     case 'dive':
       handleDive(playerId, msg.payload);
+      break;
+    case 'dart_throw':
+      handleDartThrow(playerId, msg.payload);
       break;
   }
 }

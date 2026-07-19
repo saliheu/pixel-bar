@@ -68,7 +68,9 @@ export function handleJukeboxAdd(playerId: string, videoId: string, title: strin
   if (typeof videoId !== 'string' || !VIDEO_ID_RE.test(videoId)) return;
 
   const now = Date.now();
-  if (now - player.lastJukeboxAddAt < JUKEBOX_ADD_COOLDOWN_MS) {
+  // Bedava şarkı hakkı (jeton toplayarak kazanılır) bekleme süresini atlar.
+  const useFreeSong = player.freeSongs > 0;
+  if (!useFreeSong && now - player.lastJukeboxAddAt < JUKEBOX_ADD_COOLDOWN_MS) {
     sendToPlayer(playerId, { type: 'error', payload: { message: 'Jetonun daha yeni düştü, biraz bekle.' } });
     return;
   }
@@ -79,7 +81,12 @@ export function handleJukeboxAdd(playerId: string, videoId: string, title: strin
     return;
   }
 
-  player.lastJukeboxAddAt = now;
+  if (useFreeSong) {
+    player.freeSongs--;
+    sendToPlayer(playerId, { type: 'free_songs', payload: { count: player.freeSongs, gained: false } });
+  } else {
+    player.lastJukeboxAddAt = now;
+  }
   const song: Song = { videoId, title: sanitizeTitle(String(title ?? '')), addedBy: player.name };
 
   if (!box.current) {

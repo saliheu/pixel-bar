@@ -64,13 +64,13 @@ function makeBarZones(barId: string): ZoneDef[] {
     // sahne: dans pistinin hemen üstünde, ortak platform üzerinde (platform decor'da çizilir)
     makeSingleSeat(barId, 'stage-guitar', 'stage_guitar', 540, 208),
     makeSingleSeat(barId, 'stage-drums', 'stage_drums', 660, 208),
-    // sol ve sağ duvarlar (aşağıda refleks kaideleri)
+    // sol duvar: taş-kağıt-makas + refleks; sağ duvar: pong + dart
     makeZone(barId, 'rps-1', 'rps_stool', 145, 250),
     makeZone(barId, 'rps-2', 'rps_stool', 145, 430),
     makeZone(barId, 'reflex-1', 'reflex_pad', 145, 560),
     makeZone(barId, 'pong-1', 'pong_cabinet', 1055, 250),
     makeZone(barId, 'pong-2', 'pong_cabinet', 1055, 430),
-    makeZone(barId, 'reflex-2', 'reflex_pad', 1055, 560),
+    makeZone(barId, 'dart-1', 'dart_board', 1055, 560),
     // banklar: sahne önü + pistin yanları
     makeZone(barId, 'bench-1', 'bench', 600, 300),
     makeZone(barId, 'bench-2', 'bench', 295, 330),

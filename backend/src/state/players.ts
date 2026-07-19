@@ -22,6 +22,7 @@ export interface PlayerState {
   lastPunchAt: number; // yumruk rate-limit için
   stunnedUntil: number; // yumruk yiyen oyuncu bu ana kadar hareket edemez
   wins: number; // bu oturumdaki oyun galibiyetleri (lider tablosu için)
+  freeSongs: number; // jeton toplayınca kazanılan bedava şarkı hakkı
 }
 
 export const players = new Map<string, PlayerState>();

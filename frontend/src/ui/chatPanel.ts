@@ -16,6 +16,7 @@ const KIND_TITLES: Record<string, string> = {
   reflex: 'Refleks Düellosu',
   penalty: 'Penaltı',
   freekick: 'Frikik',
+  dart: 'Dart · 301',
 };
 
 export function initChatPanel(root: HTMLElement): void {

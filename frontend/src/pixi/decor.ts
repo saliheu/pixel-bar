@@ -625,6 +625,61 @@ function drawStage(worldContainer: Container): void {
   worldContainer.addChild(sign);
 }
 
+// ---- Toplanabilir jeton: dönen altın sikke + nabız gibi atan hale ----
+export interface CoinToken {
+  container: Container;
+  coin: Graphics;
+  glow: Graphics;
+}
+
+export function createCoinToken(worldContainer: Container): CoinToken {
+  const container = new Container();
+  container.visible = false;
+  const glow = new Graphics();
+  const coin = new Graphics();
+  container.addChild(glow);
+  container.addChild(coin);
+  worldContainer.addChild(container);
+  return { container, coin, glow };
+}
+
+export function setCoinToken(token: CoinToken, pos: { x: number; y: number } | null): void {
+  if (!pos) {
+    token.container.visible = false;
+    return;
+  }
+  token.container.x = pos.x;
+  token.container.y = pos.y;
+  token.container.visible = true;
+}
+
+export function tickCoinToken(token: CoinToken, now: number): void {
+  if (!token.container.visible) return;
+  const bob = Math.sin(now * 0.004) * 3;
+  const spin = Math.abs(Math.cos(now * 0.005)); // 0..1: sikkenin yandan dönme genişliği
+  const pulse = (Math.sin(now * 0.006) + 1) / 2;
+
+  token.glow.clear();
+  token.glow.ellipse(0, bob, 13 + pulse * 3, 6).fill({ color: 0xfbbf24, alpha: 0.12 + pulse * 0.14 });
+  token.glow.ellipse(0, 12, 9, 3).fill({ color: 0x0a0713, alpha: 0.3 }); // yer gölgesi
+
+  const g = token.coin;
+  g.clear();
+  const w = 2 + spin * 8; // dönerken genişlik değişir
+  g.ellipse(0, bob, w, 10).fill(0xf5c451);
+  g.ellipse(0, bob, w, 10).stroke({ width: 1.5, color: 0xb45309 });
+  if (w > 5) {
+    g.ellipse(0, bob, w - 2.5, 8).stroke({ width: 1, color: 0xfde68a, alpha: 0.8 });
+    // ₺ benzeri işaret
+    g.moveTo(-1.5, bob - 4).lineTo(-1.5, bob + 4).stroke({ width: 1.3, color: 0xb45309, cap: 'round' });
+    g.moveTo(-3, bob - 1.5).lineTo(1.5, bob - 2.5).stroke({ width: 1.3, color: 0xb45309, cap: 'round' });
+    g.moveTo(-3, bob + 1).lineTo(1.5, bob).stroke({ width: 1.3, color: 0xb45309, cap: 'round' });
+  }
+  // parıltı
+  const tw = (Math.sin(now * 0.012) + 1) / 2;
+  g.circle(w * 0.4, bob - 4, 0.8 + tw).fill({ color: 0xffffff, alpha: 0.3 + tw * 0.5 });
+}
+
 export function createDecor(worldContainer: Container): void {
   drawBarCounter(worldContainer);
   drawNeonSign(worldContainer);

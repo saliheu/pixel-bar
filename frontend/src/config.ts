@@ -24,7 +24,7 @@ export const NAME_MAX_LENGTH = 16;
 export const AVATAR_PALETTE = [0x38bdf8, 0xf472b6, 0xfbbf24, 0x4ade80, 0xb39ddb, 0xff8a80, 0x80cbc4, 0x90caf9];
 
 // Her emote karakter üzerinde bir animasyon oynatır (el sallama, gülme, ... dans).
-export const EMOTES = ['👋', '😂', '❤️', '🎉', '😮', '🕺'];
+export const EMOTES = ['👋', '😂', '❤️', '🎉', '😮', '🕺', '👏', '😴', '😠'];
 
 // backend/src/config.ts HAT_COUNT ile aynı uzunlukta tutulmalı (0 = şapkasız).
 // İkonlar ui/icons.ts HAT_ICONS içinde aynı sırayla tanımlıdır.

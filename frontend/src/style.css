@@ -334,6 +334,22 @@ kbd {
   border-color: var(--neon-cyan);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
 }
+.join-screen__preview {
+  width: 128px;
+  height: 150px;
+  margin: 4px auto -6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 14px;
+  background:
+    radial-gradient(90px 60px at 50% 82%, rgba(56, 189, 248, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(23, 19, 42, 0.5), rgba(13, 10, 24, 0.6));
+  border: 1px solid var(--border-soft);
+}
+.join-screen__preview canvas {
+  display: block;
+}
 .join-screen__swatches {
   display: flex;
   gap: 9px;
@@ -500,31 +516,6 @@ kbd {
   gap: 4px;
   animation: join-rise 0.6s ease 0.4s both;
 }
-.join-screen__mobile {
-  padding: 30px 26px;
-  width: min(340px, 90vw);
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 14.5px;
-  line-height: 1.55;
-}
-.join-screen__mobile-icon {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 10px;
-  color: var(--neon-cyan-soft);
-}
-.join-screen__mobile-icon svg {
-  width: 46px;
-  height: 46px;
-}
-.join-screen__mobile-sub {
-  color: var(--text-faint);
-  font-size: 13px;
-}
-.join-screen__mobile p {
-  margin: 6px 0;
-}
 
 /* ============ Oyun çerçevesi (arcade kasa hissi) ============ */
 .game-wrap {
@@ -604,7 +595,8 @@ kbd {
 .room-view__stage > .rps-panel,
 .room-view__stage > .memory-panel,
 .room-view__stage > .reflex-panel,
-.room-view__stage > .shootout-panel {
+.room-view__stage > .shootout-panel,
+.room-view__stage > .dart-panel {
   margin: 0;
   width: min(500px, 92vw);
   padding: 26px 26px 22px;
@@ -612,7 +604,8 @@ kbd {
 .room-view__stage .rps-panel__heading,
 .room-view__stage .memory-panel__heading,
 .room-view__stage .reflex-panel__heading,
-.room-view__stage .shootout-panel__heading {
+.room-view__stage .shootout-panel__heading,
+.room-view__stage .dart-panel__heading {
   font-size: 14px;
   margin-bottom: 16px;
 }
@@ -1591,6 +1584,119 @@ body.in-room:not(.room-pong) #app {
 }
 .shootout-panel__role--shooter { color: #4ade80; }
 
+/* ============ Dart (301) paneli ============ */
+.dart-panel {
+  position: relative;
+  background: var(--bg-panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-panel);
+  padding: 17px 18px 15px;
+  text-align: center;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  animation: panel-in 0.28s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+.dart-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #d64545, #e8dfc8, #3a9d5a);
+  box-shadow: 0 0 12px rgba(214, 69, 69, 0.5);
+}
+.dart-panel__heading {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-bottom: 9px;
+}
+.dart-panel__score {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  min-height: 18px;
+}
+.dart-panel__board {
+  width: min(300px, 82vw);
+  margin: 0 auto 10px;
+  cursor: pointer;
+}
+.dart-board {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+}
+.dart-board__num {
+  fill: #e8e2d6;
+  font-size: 11px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.dart-sweep {
+  stroke: rgba(251, 191, 36, 0.9);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+.dart-sweep--locked {
+  stroke: rgba(251, 191, 36, 0.55);
+  stroke-dasharray: 2 3;
+}
+.dart-panel__darts {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.dart-panel__pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-soft);
+  background: rgba(15, 12, 28, 0.7);
+}
+.dart-panel__pip--used {
+  background: var(--neon-amber);
+  border-color: var(--neon-amber);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+.dart-panel__action {
+  width: min(220px, 100%);
+  padding: 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: #06121c;
+  background: linear-gradient(135deg, #fbbf24, #fcd34d);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease, opacity 0.14s ease;
+}
+.dart-panel__action:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.08); }
+.dart-panel__action:disabled { opacity: 0.4; cursor: not-allowed; }
+.dart-panel__status {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: #cbd5e1;
+  min-height: 18px;
+}
+.dart-panel__role {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  min-height: 15px;
+}
+.dart-panel__role--mine { color: var(--neon-amber); }
+
 /* ============ Hafıza kartı paneli ============ */
 .memory-panel {
   position: relative;
@@ -2253,6 +2359,291 @@ body.in-room:not(.room-pong) #app {
   margin-top: 8px;
   font-size: 11px;
   color: var(--text-faint);
+}
+
+/* ============ Dokunmatik kontroller ============ */
+.touch-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none; /* dokunmalar window dinleyicisiyle yakalanır */
+}
+.touch-layer.hidden {
+  display: none;
+}
+.touch-joy {
+  position: fixed;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.touch-joy--on {
+  opacity: 1;
+}
+.touch-joy__base {
+  width: 116px;
+  height: 116px;
+  border: 2px solid rgba(125, 211, 252, 0.35);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.12), rgba(13, 10, 24, 0.35));
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.18);
+}
+.touch-joy__knob {
+  width: 52px;
+  height: 52px;
+  border: 2px solid rgba(125, 211, 252, 0.85);
+  background: radial-gradient(circle at 35% 30%, rgba(125, 211, 252, 0.9), rgba(56, 189, 248, 0.5));
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
+}
+
+.touch-actions {
+  position: fixed;
+  right: calc(14px + env(safe-area-inset-right, 0px));
+  /* sohbet (alt) ve emote çubuğunun üstünde kalır */
+  bottom: calc(122px + env(safe-area-inset-bottom, 0px));
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.touch-actions.hidden {
+  display: none;
+}
+.touch-btn {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  font-family: var(--font-pixel);
+  font-size: 15px;
+  color: #06121c;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, filter 0.1s ease;
+}
+.touch-btn--down {
+  transform: scale(0.92);
+  filter: brightness(1.15);
+}
+.touch-btn--interact {
+  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-cyan-soft));
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.4);
+}
+.touch-btn--punch {
+  background: linear-gradient(135deg, #f87171, #fca5a5);
+  box-shadow: 0 6px 18px rgba(248, 113, 113, 0.35);
+}
+
+/* ============ Mobil / dokunmatik yerleşim ============ */
+body.touch-mode {
+  overscroll-behavior: none;
+  overflow: hidden; /* dünya görünümünde sayfa kaymasın */
+}
+/* Oyun alanı ve kontroller kaydırma/zoom yerine oyun girişine gider;
+   oda panelleri ise dikey kaydırılabilir kalır. */
+body.touch-mode .game-wrap,
+body.touch-mode .touch-layer,
+body.touch-mode .touch-actions {
+  touch-action: none;
+}
+body.touch-mode .room-view,
+body.touch-mode .leaderboard,
+body.touch-mode .jukebox-panel,
+body.touch-mode .chat-panel__messages {
+  touch-action: pan-y;
+}
+body.touch-mode #app {
+  padding: 0;
+  min-height: 100dvh;
+  gap: 0;
+}
+/* tuval ekranı kaplar; kamera oyuncuyu takip ettiği için ölçekleme yapılmaz */
+body.touch-mode .game-wrap {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.touch-mode .game-wrap::before {
+  display: none; /* arcade çerçevesi mobilde yer kaplamasın */
+}
+body.touch-mode .game-wrap canvas {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border-radius: 0;
+  display: block;
+}
+body.touch-mode .ui-root {
+  display: none; /* paneller oda görünümünde gösteriliyor */
+}
+
+/* HUD: dar ekranda sıkışır, klavye ipuçları gizlenir */
+body.touch-mode .hud-bar {
+  height: 44px;
+  padding: 0 10px;
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(44px + env(safe-area-inset-top, 0px));
+}
+body.touch-mode .hud-bar__hints {
+  display: none;
+}
+body.touch-mode .hud-bar__room,
+body.touch-mode .hud-bar__badge {
+  font-size: 10.5px;
+}
+body.touch-mode .neon-logo--small {
+  font-size: 10px;
+}
+body.touch-mode .hud-bar__mute {
+  width: 34px;
+  height: 34px;
+}
+body.touch-mode .hud-bar__right {
+  gap: 6px;
+}
+body.touch-mode .hud-bar__online {
+  font-size: 11px;
+}
+
+/* dünya sohbeti: alt kenarda, emote çubuğunun üstünde */
+body.touch-mode .world-chat-bar {
+  width: calc(100vw - 24px);
+  left: 12px;
+  right: 12px;
+  transform: none;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+body.touch-mode .world-chat-bar__form {
+  padding: 5px 5px 5px 14px;
+}
+body.touch-mode .world-chat-bar__form input {
+  font-size: 16px; /* iOS'ta odaklanınca sayfayı zoomlamaması için >=16px */
+}
+
+/* emote çubuğu: sohbetin hemen üstünde, dokuz düğme tek satıra sığar */
+body.touch-mode .emote-bar {
+  left: 8px;
+  right: 8px;
+  bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 6px;
+  border-radius: 16px;
+}
+body.touch-mode .emote-bar__button {
+  width: 34px;
+  height: 34px;
+}
+body.touch-mode .emote-bar__button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* aktivite şeridi: altta yer kalmadığı için HUD'un altına, sağ üste taşınır */
+body.touch-mode .activity-feed {
+  top: calc(50px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  bottom: auto;
+  max-width: 58vw;
+}
+body.touch-mode .quests {
+  left: 10px;
+  bottom: auto;
+  top: calc(52px + env(safe-area-inset-top, 0px));
+  width: 190px;
+}
+body.touch-mode .leaderboard,
+body.touch-mode .jukebox-panel {
+  top: calc(50px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  width: min(280px, calc(100vw - 20px));
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* oda görünümü: dikey yığılır, oyun üstte, sohbet altta kısa */
+body.touch-mode .room-view {
+  flex-direction: column;
+  padding: calc(50px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  gap: 10px;
+  overflow-y: auto;
+}
+body.touch-mode .room-view__stage {
+  width: 100%;
+}
+body.touch-mode .room-view__stage > .rps-panel,
+body.touch-mode .room-view__stage > .memory-panel,
+body.touch-mode .room-view__stage > .reflex-panel,
+body.touch-mode .room-view__stage > .shootout-panel,
+body.touch-mode .room-view__stage > .dart-panel {
+  width: 100%;
+  padding: 14px 12px 12px;
+}
+body.touch-mode .room-view__side {
+  flex: 0 0 auto;
+  width: 100%;
+  max-height: 34vh;
+}
+body.touch-mode .chat-panel {
+  min-height: 150px;
+}
+body.touch-mode .chat-panel__form input {
+  font-size: 16px;
+}
+/* pong mobilde: tuval zaten tam ekran, oda katmanı sadece sohbeti göstersin */
+body.touch-mode.room-pong .room-view {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+body.touch-mode.room-pong .room-view__stage {
+  display: none;
+}
+body.touch-mode.room-pong .room-view__side {
+  pointer-events: auto;
+  max-height: 30vh;
+}
+
+/* giriş ekranı: dar ekranda sığsın */
+@media (max-width: 820px) {
+  .join-screen {
+    padding: 16px 12px;
+    gap: 12px;
+    overflow-y: auto;
+    justify-content: flex-start;
+  }
+  .neon-logo {
+    font-size: 24px;
+  }
+  .join-screen__tagline {
+    font-size: 12.5px;
+  }
+  .join-screen__card {
+    width: 100%;
+    max-width: 420px;
+    padding: 18px 16px 16px;
+  }
+  .join-screen__preview {
+    width: 104px;
+    height: 122px;
+  }
+  .join-screen__input {
+    font-size: 16px;
+  }
+  .join-screen__bars {
+    grid-template-columns: 1fr 1fr;
+  }
+  .join-screen__hint {
+    font-size: 11.5px;
+    text-align: center;
+  }
 }
 
 /* ============ Erişilebilirlik ============ */

@@ -48,6 +48,19 @@ Tarayıcıda `http://localhost:5173` açın. İkinci bir sekme/pencere açarak �
 
 ### Kontroller
 
+### Mobil (dokunmatik)
+
+Oyun telefon ve tablette tam oynanabilir:
+
+- **Hareket:** Ekranın sol tarafına basılı tutup sürükle — parmağın bastığı yerde sanal joystick belirir (analog: az itersen yavaş, tam itersen hızlı yürürsün).
+- **E düğmesi** (sağ alt, mavi): otur / kalk / oyuna gir / müzik kutusunu aç.
+- **F düğmesi** (sağ alt, kırmızı): yumruk.
+- **Emote'lar:** sohbet çubuğunun üstündeki ikon şeridine dokun.
+- **Oyunlar:** taş-kağıt-makas, hafıza, refleks, penaltı, frikik ve dart tamamen dokunarak oynanır. Pong'da ekranın herhangi bir yerine basılı tutup yukarı/aşağı sürükleyerek raketi oynatırsın.
+- Kamera karakterini takip eder; harita ekrana sığdırılmak yerine yakınlaştırılır, böylece karakterler okunaklı kalır. Yatay tutuş daha geniş görüş verir.
+
+### Masaüstü
+
 | Tuş | İşlev |
 |---|---|
 | `WASD` / ok tuşları | Haritada yürüme |
@@ -85,5 +98,5 @@ Tarayıcıda `http://localhost:5173` açın. İkinci bir sekme/pencere açarak �
 - Bar haritasında ayrıca odasız, serbest oturulabilen banklar var — bunlara oturmak hiçbir chat/oyun odası açmaz, sadece görsel bir "oturma" durumudur.
 - Oda-sohbeti (`chat_send`) sadece o odaya özeldir. Dünya sohbeti ve emote'lar yakınlıktaki (260px) oyunculara görünür, kalıcı geçmişleri yoktur.
 - Sunucu tarafı korumalar: sohbet/emote rate-limiti (1/sn), 200 karakter sınırı, 2 KB mesaj boyutu limiti, salon başına 25 / toplam 100 oyuncu sınırı, hareket doğrulama, isteğe bağlı origin kontrolü, SIGTERM'de düzgün kapanış.
-- Mobil destek yok; dar/dokunmatik ekranlarda "masaüstünde açın" ekranı gösterilir.
+- Mobil tam desteklidir: dokunmatik cihazlarda sahne ekranı kaplar, kamera oyuncuyu takip eder, sanal joystick + aksiyon düğmeleri devreye girer (`frontend/src/input/touch.ts`). Masaüstünde davranış değişmez — harita bütün olarak sabit 1200x700 tuvalde görünür.
 - İlk giriş deneyimi: dünya ışıklarla açılır, spawn'a spot düşer, isimli karşılama banner'ı + barmen selamı görünür. Sol alttaki "🌙 İlk Gece Görevleri" paneli (emote yap, sohbet et, tabureye otur, dans et, masaya otur, oyun bitir) yeni kullanıcıyı özelliklerde gezdirir; hepsi tamamlanınca konfeti + kalıcı "⭐ Müdavim" rozeti (localStorage) verilir.

@@ -8,8 +8,9 @@ import { initMemory, type MemoryGame } from '../games/memory.js';
 import { initPong, type PongGame } from '../games/pong.js';
 import { initReflex, clearReflexTimers, type ReflexGame } from '../games/reflex.js';
 import { initShootout, clearShootoutTimer, type ShootoutGame } from '../games/shootout.js';
+import { initDart, clearDartTimer, type DartGame } from '../games/dart.js';
 import { startPongLoop, stopPongLoop } from './pongLoop.js';
-import { sendMemoryState, startReflexRound, sendShootoutState } from './gameplay.js';
+import { sendMemoryState, startReflexRound, sendShootoutState, sendDartState } from './gameplay.js';
 import { bartenderServeQuip } from './bartender.js';
 
 // Oda/eşleşme AÇMAYAN, sadece görsel oturma sağlayan zone tipleri.
@@ -24,6 +25,7 @@ const ZONE_TYPE_TO_KIND: Record<Exclude<ZoneType, SeatOnlyType>, RoomKind> = {
   reflex_pad: 'reflex',
   penalty_spot: 'penalty',
   freekick_spot: 'freekick',
+  dart_board: 'dart',
 };
 
 function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -86,6 +88,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     else if (kind === 'memory') room.game = initMemory(pids);
     else if (kind === 'reflex') room.game = initReflex(pids);
     else if (kind === 'penalty' || kind === 'freekick') room.game = initShootout(kind, pids);
+    else if (kind === 'dart') room.game = initDart(pids);
     else if (kind === 'pong') {
       room.game = initPong(pids);
       pongSides = { ...(room.game as PongGame).sides };
@@ -106,6 +109,7 @@ function joinOrCreateRoom(zone: ZoneDef, playerId: string): void {
     if (kind === 'memory') sendMemoryState(room.playerIds, room.game as MemoryGame); // ilk sıra bilgisi
     if (kind === 'reflex') startReflexRound(room);
     if (kind === 'penalty' || kind === 'freekick') sendShootoutState(room); // ilk vuruşun rolleri bildirilsin
+    if (kind === 'dart') sendDartState(room);
   }
 }
 
@@ -125,6 +129,9 @@ export function leaveRoom(playerId: string, reason: 'left' | 'disconnected'): vo
   }
   if ((room.kind === 'penalty' || room.kind === 'freekick') && room.game) {
     clearShootoutTimer(room.game as ShootoutGame);
+  }
+  if (room.kind === 'dart' && room.game) {
+    clearDartTimer(room.game as DartGame);
   }
 
   // sadece ayrılan oyuncunun koltuğu boşalır; kalan oturmaya devam eder

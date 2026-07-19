@@ -1,10 +1,10 @@
 import { sendMessage } from '../net/socket.js';
 import { EMOTES } from '../config.js';
-import { ICON_WAVE, ICON_LAUGH, ICON_HEART, ICON_PARTY, ICON_SURPRISE, ICON_DANCE } from './icons.js';
+import { ICON_WAVE, ICON_LAUGH, ICON_HEART, ICON_PARTY, ICON_SURPRISE, ICON_DANCE, ICON_CLAP, ICON_SLEEP, ICON_ANGRY } from './icons.js';
 
-// EMOTES ile aynı sıra: el sallama, gülme, kalp, kutlama, şaşırma, dans
-const EMOTE_ICONS = [ICON_WAVE, ICON_LAUGH, ICON_HEART, ICON_PARTY, ICON_SURPRISE, ICON_DANCE];
-const EMOTE_TITLES = ['El salla', 'Gül', 'Kalp gönder', 'Kutla', 'Şaşır', 'Dans et'];
+// EMOTES ile aynı sıra: el sallama, gülme, kalp, kutlama, şaşırma, dans, alkış, uyku, öfke
+const EMOTE_ICONS = [ICON_WAVE, ICON_LAUGH, ICON_HEART, ICON_PARTY, ICON_SURPRISE, ICON_DANCE, ICON_CLAP, ICON_SLEEP, ICON_ANGRY];
+const EMOTE_TITLES = ['El salla', 'Gül', 'Kalp gönder', 'Kutla', 'Şaşır', 'Dans et', 'Alkışla', 'Uyu', 'Kız'];
 
 let barEl: HTMLDivElement;
 let onLocalEmote: (emote: string) => void = () => {};

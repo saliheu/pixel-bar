@@ -38,6 +38,10 @@ export const PUNCH_KNOCKBACK = 90; // kurbanın savrulma mesafesi
 export const PUNCH_COOLDOWN_MS = 1200;
 export const PUNCH_STUN_MS = 1100; // kurbanın yerde kalma süresi
 
+export const DART_START = 301; // dart 301: bu sayıdan tam sıfıra inen kazanır
+export const DART_RESULT_MS = 1600; // atış sonucunun ekranda kalma süresi
+export const DART_SCATTER = 3.5; // atışa eklenen hafif rastgele sapma (tahta birimi)
+
 export const RPS_WIN_SCORE = 5; // ilk 5 galibiyeti alan maçı kazanır
 export const REFLEX_WIN_SCORE = 3;
 export const REFLEX_ARM_MIN_MS = 1200; // "BAS!" sinyali için minimum bekleme
@@ -58,7 +62,7 @@ export const NAME_MAX_LENGTH = 16;
 // frontend/src/config.ts AVATAR_PALETTE ile aynı sırada tutulmalı
 export const AVATAR_PALETTE = [0x38bdf8, 0xf472b6, 0xfbbf24, 0x4ade80, 0xb39ddb, 0xff8a80, 0x80cbc4, 0x90caf9];
 
-export const EMOTE_WHITELIST = ['👋', '😂', '❤️', '🎉', '😮', '🕺'];
+export const EMOTE_WHITELIST = ['👋', '😂', '❤️', '🎉', '😮', '🕺', '👏', '😴', '😠'];
 
 // frontend/src/config.ts HATS listesiyle aynı uzunlukta tutulmalı (0 = şapkasız)
 export const HAT_COUNT = 5;

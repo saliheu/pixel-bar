@@ -3,6 +3,7 @@ import { broadcastBar } from '../util/broadcast.js';
 import { MAP_WIDTH, MAP_HEIGHT, PLAYER_MIN_Y } from '../config.js';
 import type { Facing } from '../protocol.js';
 import { findSeatZoneFor } from '../state/zones.js';
+import { checkTokenCollect } from './token.js';
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -28,4 +29,6 @@ export function handleMove(playerId: string, x: number, y: number, facing: Facin
     player.barId,
     { type: 'player_moved', payload: { id: playerId, x: player.x, y: player.y, facing, moving } },
   );
+
+  checkTokenCollect(playerId); // jetonun üstünden geçtiyse topla
 }

@@ -1,4 +1,5 @@
 import type { Facing } from '../protocol.js';
+import { getTouchAxis } from './touch.js';
 
 const held = new Set<string>();
 
@@ -41,8 +42,32 @@ export interface MoveVector {
   facing: Facing | null;
 }
 
-// Serbest dünya hareketi için (oda dışındayken kullanılır)
+function facingOf(dx: number, dy: number): Facing | null {
+  // baskın eksen bakış yönünü belirler
+  if (Math.abs(dy) >= Math.abs(dx)) {
+    if (dy < 0) return 'up';
+    if (dy > 0) return 'down';
+    return null;
+  }
+  return dx < 0 ? 'left' : 'right';
+}
+
+// Serbest dünya hareketi (oda dışındayken). Klavye ve dokunmatik joystick birleşir;
+// joystick analog olduğu için itiş miktarı hıza yansır.
 export function getMoveVector(): MoveVector {
+  const touch = getTouchAxis();
+  if (touch.x !== 0 || touch.y !== 0) {
+    // joystick etkin: uzunluk 1'i aşmasın (köşegende hızlanma olmasın)
+    let dx = touch.x;
+    let dy = touch.y;
+    const len = Math.hypot(dx, dy);
+    if (len > 1) {
+      dx /= len;
+      dy /= len;
+    }
+    return { dx, dy, moving: true, facing: facingOf(dx, dy) };
+  }
+
   let dx = 0;
   let dy = 0;
   if (held.has('ArrowUp')) dy -= 1;
@@ -51,11 +76,7 @@ export function getMoveVector(): MoveVector {
   if (held.has('ArrowRight')) dx += 1;
 
   const moving = dx !== 0 || dy !== 0;
-  let facing: Facing | null = null;
-  if (dy < 0) facing = 'up';
-  else if (dy > 0) facing = 'down';
-  else if (dx < 0) facing = 'left';
-  else if (dx > 0) facing = 'right';
+  const facing = facingOf(dx, dy);
 
   if (moving && dx !== 0 && dy !== 0) {
     const norm = Math.SQRT1_2;
@@ -66,8 +87,11 @@ export function getMoveVector(): MoveVector {
   return { dx, dy, moving, facing };
 }
 
-// Pong raket girişi için (sadece Pong odasındayken kullanılır)
+// Pong raket girişi (sadece Pong odasındayken). Dokunmatikte joystick'in dikey ekseni.
 export function getPongDir(): -1 | 0 | 1 {
+  const touch = getTouchAxis();
+  if (touch.y < -0.25) return -1;
+  if (touch.y > 0.25) return 1;
   if (held.has('ArrowUp')) return -1;
   if (held.has('ArrowDown')) return 1;
   return 0;

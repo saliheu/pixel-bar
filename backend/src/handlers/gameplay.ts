@@ -15,10 +15,19 @@ import {
   sanitizeDive,
   type ShootoutGame,
 } from '../games/shootout.js';
+import {
+  initDart,
+  resetDart,
+  clearDartTimer,
+  currentThrower,
+  applyDartThrow,
+  dartWinner,
+  type DartGame,
+} from '../games/dart.js';
 import { startPongLoop } from './pongLoop.js';
 import { recordWin } from './social.js';
 import type { RoomState } from '../state/rooms.js';
-import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS, SHOOTOUT_RESULT_MS, SHOOTOUT_KICKS_EACH } from '../config.js';
+import { REFLEX_ARM_MIN_MS, REFLEX_ARM_MAX_MS, REFLEX_NEXT_ROUND_MS, SHOOTOUT_RESULT_MS, SHOOTOUT_KICKS_EACH, DART_RESULT_MS, DART_SCATTER } from '../config.js';
 import type { Choice } from '../protocol.js';
 
 const MEMORY_MISMATCH_REVEAL_MS = 1100;
@@ -209,7 +218,56 @@ export function handleDive(playerId: string, raw: unknown): void {
   });
 }
 
-// Biten bir oyunu (hafıza/pong/refleks/penaltı) aynı odada yeniden başlatır.
+// ---- Dart (301) ----
+
+export function sendDartState(room: RoomState, phase: 'aim' | 'result' = 'aim'): void {
+  const game = room.game as DartGame;
+  sendToPlayers(room.playerIds, {
+    type: 'dart_state',
+    payload: {
+      phase,
+      thrower: currentThrower(game),
+      remaining: { ...game.remaining },
+      turnDarts: game.turnDarts.map((d) => ({ ...d })),
+      lastDart: game.lastDart,
+      bust: game.bust,
+      matchWinner: dartWinner(game),
+    },
+  });
+}
+
+export function handleDartThrow(playerId: string, raw: unknown): void {
+  const player = players.get(playerId);
+  const room = player?.roomId ? rooms.get(player.roomId) : undefined;
+  if (!room || room.kind !== 'dart' || !room.game) return; // game null = rakip bekleniyor
+  const game = room.game as DartGame;
+  if (game.ended || game.resultTimer) return; // sonuç gösterilirken atış alınmaz
+  if (currentThrower(game) !== playerId) return; // sıra sende değil
+
+  const p = raw as { x?: unknown; y?: unknown };
+  if (typeof p.x !== 'number' || typeof p.y !== 'number' || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+  // hafif rastgele sapma: mükemmel koordinat gönderilse de bull garanti olmasın
+  const x = p.x + (Math.random() * 2 - 1) * DART_SCATTER;
+  const y = p.y + (Math.random() * 2 - 1) * DART_SCATTER;
+
+  const result = applyDartThrow(game, x, y);
+  sendDartState(room, 'result');
+
+  if (result.won) {
+    const loser = room.playerIds.find((pid) => pid !== playerId) ?? null;
+    recordWin(playerId, loser, 'dart');
+    return;
+  }
+
+  // kısa sonuç gösterimi, sonra sıradaki atış/oyuncu
+  game.resultTimer = setTimeout(() => {
+    game.resultTimer = null;
+    if (rooms.get(room.roomId) !== room || room.game !== game) return;
+    sendDartState(room, 'aim');
+  }, DART_RESULT_MS);
+}
+
+// Biten bir oyunu (hafıza/pong/refleks/penaltı/frikik/dart) aynı odada yeniden başlatır.
 export function handleGameRestart(playerId: string): void {
   const player = players.get(playerId);
   const room = player?.roomId ? rooms.get(player.roomId) : undefined;
@@ -244,6 +302,12 @@ export function handleGameRestart(playerId: string): void {
     resetShootout(game);
     sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: room.kind } });
     sendShootoutState(room, 'pick');
+  } else if (room.kind === 'dart') {
+    const game = room.game as DartGame;
+    if (!game.ended) return;
+    resetDart(game);
+    sendToPlayers(room.playerIds, { type: 'game_restarted', payload: { kind: 'dart' } });
+    sendDartState(room, 'aim');
   }
 }
 

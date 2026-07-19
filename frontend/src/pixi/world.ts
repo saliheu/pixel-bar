@@ -16,6 +16,7 @@ const ZONE_LABELS: Record<ZoneType, string> = {
   stage_drums: 'Bateri',
   penalty_spot: 'Penaltı',
   freekick_spot: 'Frikik',
+  dart_board: 'Dart',
 };
 
 // Boş koltuğu işaret eden parıltı rengi. Dolu koltukta parıltı çizilmez;
@@ -74,6 +75,7 @@ const RUG_COLORS: Record<ZoneType, number> = {
   stage_drums: 0xf472b6,
   penalty_spot: 0x4ade80,
   freekick_spot: 0x4ade80,
+  dart_board: 0xd64545,
 };
 
 function drawRug(g: Graphics, w: number, h: number, type?: ZoneType): void {
@@ -251,6 +253,34 @@ function drawBase(g: Graphics, type: ZoneType): void {
       g.ellipse(-31, -6, 7, 2.4).fill(0xd9b955);
       g.ellipse(-31, -3, 7, 2.4).fill(0xc9a945);
       break;
+    case 'dart_board': {
+      // duvara asılı dart tahtası (üstte) + zeminde atış çizgisi/halı
+      drawRug(g, 40, 15, 'dart_board');
+      // dış kasa + tahta
+      g.circle(0, -30, 24).fill(0x120f1e).stroke({ width: 2, color: 0x3a3455 });
+      g.circle(0, -30, 20).fill(0x2a2438);
+      // dönüşümlü krem/koyu dilimler (basitleştirilmiş)
+      for (let i = 0; i < 12; i++) {
+        const a0 = (i / 12) * Math.PI * 2;
+        const a1 = ((i + 1) / 12) * Math.PI * 2;
+        g.moveTo(0, -30)
+          .arc(0, -30, 20, a0, a1)
+          .lineTo(0, -30)
+          .fill(i % 2 === 0 ? 0xe8dfc8 : 0x2a2438);
+      }
+      // triple/double kırmızı-yeşil halkalar
+      g.circle(0, -30, 13).stroke({ width: 2.5, color: 0x3a9d5a, alpha: 0.85 });
+      g.circle(0, -30, 19).stroke({ width: 2.5, color: 0xd64545, alpha: 0.85 });
+      // bull
+      g.circle(0, -30, 5).fill(0x3a9d5a);
+      g.circle(0, -30, 2.4).fill(0xd64545);
+      // saplı iki dart (dekoratif)
+      g.moveTo(-6, -34).lineTo(-14, -40).stroke({ width: 1.4, color: 0xcbd5e1 });
+      g.moveTo(4, -26).lineTo(12, -20).stroke({ width: 1.4, color: 0xfbbf24 });
+      // zemin atış çizgisi
+      g.roundRect(-20, 4, 40, 3, 1.5).fill({ color: 0xe8dfc8, alpha: 0.4 });
+      break;
+    }
     case 'freekick_spot': {
       // frikik sahası: çim + kale + önünde baraj mankenleri + duran top
       g.roundRect(-52, -34, 104, 66, 10).fill(0x2c5c3a);

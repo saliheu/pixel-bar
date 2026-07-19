@@ -13,6 +13,9 @@ const ACTION_DURATIONS: Record<string, number> = {
   '🎉': 2100,
   '😮': 1400,
   '🕺': 2800,
+  '👏': 1900,
+  '😴': 2600,
+  '😠': 1700,
   punch: 450, // yumruk savurma (emote değil, F ile tetiklenir)
 };
 
@@ -250,6 +253,32 @@ function drawHat(g: Graphics, hat: number, hy: number, headR: number, bodyColor:
   }
 }
 
+// Öfke: baş üstünde yükselen kızgın buhar bulutçukları.
+function drawAngerSteam(g: Graphics, now: number, ap: number): void {
+  const alpha = Math.max(0, 1 - ap);
+  if (alpha <= 0) return;
+  for (const sx of [-8, 8]) {
+    const t = (now * 0.002 + (sx < 0 ? 0 : 0.5)) % 1;
+    const py = -46 - t * 12;
+    const r = 1.5 + t * 2;
+    g.circle(sx, py, r).fill({ color: 0xf87171, alpha: alpha * (1 - t) * 0.8 });
+  }
+}
+
+// Uyku: baş üstünde büyüyerek süzülen Z harfleri.
+function drawSleepZ(g: Graphics, now: number, ap: number): void {
+  const baseAlpha = Math.max(0, 1 - ap * 0.8);
+  for (let i = 0; i < 3; i++) {
+    const t = ((now * 0.0006 + i * 0.33) % 1);
+    const s = 2.5 + t * 3.5;
+    const x = 7 + t * 10;
+    const y = -44 - t * 20;
+    const a = baseAlpha * (t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85);
+    g.moveTo(x - s, y - s).lineTo(x + s, y - s).lineTo(x - s, y + s).lineTo(x + s, y + s)
+      .stroke({ width: 1.1, color: 0xbfe9ff, alpha: a, cap: 'round', join: 'round' });
+  }
+}
+
 // Baş üstünde süzülen kalp.
 function drawHeart(g: Graphics, x: number, y: number, scale: number, alpha: number): void {
   g.circle(x - 2.4 * scale, y - 1.2 * scale, 3 * scale).fill({ color: 0xf472b6, alpha });
@@ -468,9 +497,24 @@ function drawActionPose(g: Graphics, v: PlayerVisual, color: number, now: number
     g.circle(-3.8, -34, 1.9).fill(OUTLINE_COLOR);
     g.circle(3.8, -34, 1.9).fill(OUTLINE_COLOR);
     g.circle(0, -28.5, 2.3).stroke({ width: 1.4, color: OUTLINE_COLOR });
+  } else if (action === '😠') {
+    // öfke: çatık kaşlar + aşağı dönük ağız + kafadan buhar (fx)
+    g.moveTo(-6, -37).lineTo(-1.5, -35).stroke({ width: 1.4, color: OUTLINE_COLOR, cap: 'round' });
+    g.moveTo(6, -37).lineTo(1.5, -35).stroke({ width: 1.4, color: OUTLINE_COLOR, cap: 'round' });
+    g.circle(-3.5, -33, 1.5).fill(OUTLINE_COLOR);
+    g.circle(3.5, -33, 1.5).fill(OUTLINE_COLOR);
+    g.moveTo(-3, -28).arc(0, -28, 3, 0, Math.PI, true).stroke({ width: 1.3, color: OUTLINE_COLOR, cap: 'round' });
+    drawAngerSteam(v.fx, now, ap);
+  } else if (action === '😴') {
+    // uyku: kapalı gözler + baş yana eğik + Zzz (fx)
+    g.rotation = 0.14;
+    g.moveTo(-5.4, -34).arc(-3.8, -34, 1.6, Math.PI, 0, false).stroke({ width: 1.2, color: OUTLINE_COLOR, cap: 'round' });
+    g.moveTo(2.2, -34).arc(3.8, -34, 1.6, Math.PI, 0, false).stroke({ width: 1.2, color: OUTLINE_COLOR, cap: 'round' });
+    g.circle(0, -29, 1.4).stroke({ width: 1.2, color: OUTLINE_COLOR });
+    drawSleepZ(v.fx, now, ap);
   } else {
     drawEyes(g, v, -34, 3.8, now);
-    if (action === '👋' || action === '🎉' || action === '❤️') {
+    if (action === '👋' || action === '🎉' || action === '❤️' || action === '👏') {
       // hafif gülümseme
       g.moveTo(-2.6, -29.5).arc(0, -29.5, 2.6, Math.PI * 0.85, Math.PI * 0.15, true).stroke({ width: 1.2, color: OUTLINE_COLOR, cap: 'round' });
     }
@@ -515,6 +559,38 @@ function drawActionPose(g: Graphics, v: PlayerVisual, color: number, now: number
       // kollar iki yana açık
       g.moveTo(-6, -20).lineTo(-13, -16).stroke({ width: 3.2, color, cap: 'round' });
       g.moveTo(6, -20).lineTo(13, -16).stroke({ width: 3.2, color, cap: 'round' });
+      break;
+    }
+    case '👏': {
+      // alkış: iki el önde açılıp kapanır, çarpınca kıvılcım
+      const clap = (Math.sin(now * 0.022) + 1) / 2; // 0..1
+      const spread = 2 + clap * 7;
+      g.moveTo(-6, -20).lineTo(-spread, -15).stroke({ width: 3.2, color, cap: 'round' });
+      g.moveTo(6, -20).lineTo(spread, -15).stroke({ width: 3.2, color, cap: 'round' });
+      g.circle(-spread, -15, 2).fill(color).stroke({ width: 1, color: OUTLINE_COLOR });
+      g.circle(spread, -15, 2).fill(color).stroke({ width: 1, color: OUTLINE_COLOR });
+      if (clap < 0.15) {
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2;
+          v.fx.circle(Math.cos(a) * 6, -15 + Math.sin(a) * 6, 1).fill({ color: 0xfde047, alpha: 0.8 });
+        }
+      }
+      break;
+    }
+    case '😴': {
+      // uyku: kollar gövdeye dayalı, hafif salınım
+      const armColor = darken(color, 0.55);
+      g.moveTo(-6, -20).lineTo(-4, -12).stroke({ width: 3.2, color: armColor, cap: 'round' });
+      g.moveTo(6, -20).lineTo(4, -12).stroke({ width: 3.2, color: armColor, cap: 'round' });
+      break;
+    }
+    case '😠': {
+      // öfke: yumruklar sıkılı, gövdeye yakın, titrer
+      const shake = Math.sin(now * 0.05) * 0.8;
+      g.moveTo(-6, -20).lineTo(-9 + shake, -13).stroke({ width: 3.4, color, cap: 'round' });
+      g.moveTo(6, -20).lineTo(9 + shake, -13).stroke({ width: 3.4, color, cap: 'round' });
+      g.circle(-9 + shake, -13, 2.4).fill(color).stroke({ width: 1.2, color: OUTLINE_COLOR });
+      g.circle(9 + shake, -13, 2.4).fill(color).stroke({ width: 1.2, color: OUTLINE_COLOR });
       break;
     }
     case 'punch': {

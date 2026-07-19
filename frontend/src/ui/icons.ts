@@ -24,6 +24,15 @@ export const ICON_SURPRISE = svg(
 export const ICON_DANCE = svg(
   '<circle cx="13" cy="4.5" r="2"/><path d="M13 7l-2 5 1 7"/><path d="M11 12l4 2 1 5"/><path d="M13 8.5l4-2 3 1"/><path d="M11.5 9L7 8 5 10"/>',
 );
+export const ICON_CLAP = svg(
+  '<path d="M8.5 13.5l-3.5-3.5a1.4 1.4 0 0 1 2-2l3 3"/><path d="M15.5 13.5l3.5-3.5a1.4 1.4 0 0 0-2-2l-3 3"/><path d="M10 12V6.5a1.4 1.4 0 0 1 2.8 0V12M12.8 12V7a1.4 1.4 0 0 1 2.8 0v5a5 5 0 0 1-10 0"/><path d="M17 4l1.5-1.5M20 7l1.5-.5M4 7L2.5 6.5"/>',
+);
+export const ICON_SLEEP = svg(
+  '<path d="M4 13a6 6 0 0 0 10.5 4A8 8 0 0 1 8 5.5 6 6 0 0 0 4 13z"/><path d="M15 4h4l-4 5h4"/>',
+);
+export const ICON_ANGRY = svg(
+  '<circle cx="12" cy="13" r="8"/><path d="M8 10.5l2.5 1M16 10.5l-2.5 1"/><path d="M9 16.5a4 4 0 0 1 6 0"/><path d="M6 4l1.5 2M18 4l-1.5 2M12 3v2"/>',
+);
 
 // ---- Taş / Kağıt / Makas ----
 export const ICON_ROCK = svg(

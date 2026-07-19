@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 import { handleConnection, startHeartbeat, startStaleSweep } from './handlers/connection.js';
 import { startBartenderIdle } from './handlers/bartender.js';
+import { startTokenSpawner } from './handlers/token.js';
 import { countPlayersInBar } from './state/players.js';
 import { BAR_IDS, BAR_CAPACITY } from './config.js';
 
@@ -57,6 +58,7 @@ wss.on('connection', (socket, req) => {
 const heartbeat = startHeartbeat();
 const staleSweep = startStaleSweep();
 const bartenderIdle = startBartenderIdle();
+const tokenSpawner = startTokenSpawner();
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend dinliyor: 0.0.0.0:${PORT}`);
@@ -67,6 +69,7 @@ function shutdown(): void {
   clearInterval(heartbeat);
   clearInterval(staleSweep);
   clearInterval(bartenderIdle);
+  clearInterval(tokenSpawner);
   for (const client of wss.clients) client.close(1001, 'server shutting down');
   wss.close();
   httpServer.close(() => process.exit(0));
